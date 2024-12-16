@@ -1,0 +1,40 @@
+# Basic configuration parameters:
+num_rx: 20
+max_depth: 3
+prim_carrier_freq: 3425e6
+prim_bandwidth: 80e6
+sharing_carrier_freq: 6425e6
+sharing_bandwidth: 80e6
+prim_subcarrier_spacing: 15e3 # WiFi 6 subcarrier spacing would be 78.125, may need to change resource grid to properly change
+sharing_subcarrier_spacing: 15e3
+prim_fft_size: 48
+sharing_fft_size: 48
+block_size: 1352
+batches: 20
+ebno_db: 2.0
+cell_size: 3
+images_path: "/home/ubuntu/spectrum_sharing/Simulations/"
+log_path: "/home/ubuntu/spectrum_sharing/Logging/"
+max_results_length: 10
+
+# Transmitters
+transmitters:
+    tx0:
+        name: "tx0"
+        position: [32, 10, 21]
+        direction: [0, 0, 0]
+        orientation: [0, 0, 0]
+        color: [1, 0, 0]
+        prim_power: 35
+        supp_power: 35
+        look_at: [32, 0, 10]
+
+    tx1:
+        name: "tx1"
+        position: [-16, 23, 25] # transmitter and receiver structure needs to be the same - may need to include Doppler
+        direction: [0, 0, 0]
+        orientation: [0, 0, 0]
+        color: [1, 0, 0]
+        prim_power: 17
+        supp_power: 17
+        look_at: [-30, 23, 10]
