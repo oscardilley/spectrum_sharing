@@ -5,17 +5,7 @@ For iterating through episodes of Sionna simulations.
 """
 
 import tensorflow as tf
-# import numpy as np
-# import sionna
-# from time import perf_counter
-# from sionna.channel import cir_to_ofdm_channel, subcarrier_frequencies, ApplyOFDMChannel #, CIRDataset, OFDMChannel
-# from sionna.nr import PUSCHConfig, PUSCHTransmitter, PUSCHReceiver
-# from sionna.utils import compute_bler, compute_ber, ebnodb2no
 from sionna.rt import load_scene, PlanarArray, Transmitter, Receiver
-# from hydra import compose, initialize 
-# from omegaconf import OmegaConf
-# import matplotlib.pyplot as plt
-# import matplotlib as mpl
 
 from channel_simulator import ChannelSimulator
 
@@ -27,6 +17,7 @@ class FullSimulator:
     Docs coming soon ...
     """
     def __init__(self,
+                 prefix,
                  scene_name,
                  carrier_frequency,
                  bandwidth,
@@ -38,10 +29,11 @@ class FullSimulator:
                  initial_state,
                  subcarrier_spacing,
                  fft_size,
-                 num_time_steps = 14,
+                 num_time_steps=14,
                  ):
         
         # Configuration attributes
+        self.prefix = prefix
         self.scene_name = scene_name
         self.carrier_frequency = carrier_frequency
         self.bandwidth = bandwidth
@@ -68,8 +60,9 @@ class FullSimulator:
 
         # Creating the scene
         self.scene = self._create_scene()
-        self.cm, self.sinr = self._coverage_map()
+        self.cm, _ = self._coverage_map(init=True)
         self.grid = self._validity_matrix()
+        self.cm, self.sinr = self._coverage_map(init=False) # correcting power levels
 
 
     def _create_scene(self):
@@ -95,22 +88,31 @@ class FullSimulator:
     
         return sn
     
-    def _coverage_map(self):
+    def _coverage_map(self, init=False):
         """ Update or generate coverage map. """
-        # Adding the transmitters
-        for tx in self.transmitters.keys():
-            transmitter = Transmitter(name=self.transmitters[tx]["name"],
-                                            position=self.transmitters[tx]["position"], # top of red building on simple street canyon
-                                            orientation=self.transmitters[tx]["orientation"], # angles [alpha,beta,gamma] corrsponding to rotation around [z,y,x] axes (yaw, pitch, roll)
-                                            color=self.transmitters[tx]["color"],
-                                            power_dbm=self.pmax)
-            self.scene.add(transmitter)
-            transmitter.look_at(self.transmitters[tx]["look_at"])
+        # Adding the transmitters and updating scene - Sionna only holds one scene in GPU memory at a time
+        self.scene.frequency = self.carrier_frequency
+        self.scene.bandwidth = self.bandwidth
 
-            # Need to use self.state and detect init
+        for tx, state in zip(self.transmitters.keys(), self.state):
+            if bool(state):                
+                if tx not in self.scene.transmitters:
+                    # Adding new transmitters
+                    transmitter = Transmitter(name=self.transmitters[tx]["name"],
+                                              position=self.transmitters[tx]["position"], # top of red building on simple street canyon
+                                              orientation=self.transmitters[tx]["orientation"], # angles [alpha,beta,gamma] corrsponding to rotation around [z,y,x] axes (yaw, pitch, roll)
+                                              color=self.transmitters[tx]["color"],
+                                              power_dbm=self.pmax)
+                    self.scene.add(transmitter)
+                    self.scene.transmitters[tx].look_at(self.transmitters[tx]["look_at"])
 
+                if not init:
+                    self.scene.transmitters[tx].power_dbm = self.transmitters[tx][f"{self.prefix}_power"]
+                    self.scene.transmitters[tx].look_at(self.transmitters[tx]["look_at"])
 
-
+            else:
+                # Removing transmitter
+                self.scene.remove(tx)
 
         # Generating a coverage map for max power to establish valid UE regions
         cm = self.scene.coverage_map(max_depth=self.max_depth,           # Maximum number of ray scene interactions
@@ -137,15 +139,12 @@ class FullSimulator:
 
     def __call__(self, receivers, state, transmitters=None):
         """ Running an episode. """
-        # Updating transmitters if required
-        if transmitters is not None:
-            # Only updating transmitters if parameters have changed
-            self.transmitters = transmitters
+        # Updating transmitters
+        self.transmitters = transmitters
 
         # Apply the state and update the coverage map to obtain new 
-        if tf.reduce_all(tf.equal(state, self.state)) is False or transmitters is not None:
-            self.state = state
-            self.cm, self.sinr = self._coverage_map() 
+        self.state = state
+        self.cm, self.sinr = self._coverage_map() 
 
         # Updating the receivers
         per_rx_sinr = self.update_receivers(receivers)
@@ -158,18 +157,30 @@ class FullSimulator:
                             tx_velocities=[self.cell_size * tf.convert_to_tensor(transmitter["direction"], dtype=tf.int64) for transmitter in self.transmitters.values()], # [batch_size, num_tx, 3] shape
                             rx_velocities=[self.cell_size * receiver["direction"] for receiver in receivers.values()]) # [batch_size, num_rx, 3] shape
         a, tau = paths.cir(los=True)
-        self.simulator.update_channel(a, tau)
+        num_active_tx = int(tf.reduce_sum(tf.cast(self.state, tf.int32)))
+        self.simulator.update_channel(num_active_tx, a, tau)
         self.simulator.update_sinr(per_rx_sinr)
 
         # Bit level simulation
         ber, sinr = self.simulator(block_size=self.block_size)
 
-        # Output processing
-            # May Need to handle inf etc.
+        bers = []
+        sinrs = []
+        count = 0
 
-        rewards = {"ber": ber, "sinr": sinr}
+        # Handling dynamic size of state:
+        for state in self.state:
+            if bool(state) is True:
+                bers.append(tf.clip_by_value(ber[count], -1e5, 1e5))
+                sinrs.append(sinr[count])
+                count += 1
+            else:
+                bers.append(tf.zeros(self.num_rx, dtype=tf.float64))
+                sinrs.append(tf.zeros(self.num_rx, dtype=tf.float32))
+            
+        results = {"ber": tf.stack(bers), "sinr": tf.stack(sinrs)}
 
-        return rewards
+        return results
 
 
     def update_receivers(self, receivers):

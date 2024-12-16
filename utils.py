@@ -5,11 +5,12 @@ Key utility functions for running simuations.
 """
 
 import tensorflow as tf
-# import numpy as np
+import numpy as np
 
 def update_users(grid, num_users, users, max_move=2):
     """ Based on tensorflow validity matrix, either generate random users or update existing"""
-    [y_max, x_max] = grid.shape # remaining consistent with Sionna y, x
+    y_max = grid.shape[0]
+    x_max = grid.shape[1]
     valid_indices = tf.where(grid)
     
     if users == {}:
@@ -46,3 +47,18 @@ def update_users(grid, num_users, users, max_move=2):
         users[f"ue{ue}"]["direction"] = tf.concat([move, tf.constant([0], dtype=tf.int64)], axis=0) 
 
     return users
+
+def get_throughput():
+    """ Calculate average link level throughput. """
+
+    return
+
+def get_spectral_efficiency():
+    """ Calculate average spectral efficiency. """
+
+    return
+
+def get_energy_efficiency():
+    """ Calculate average energy efficiency. """
+
+    return

@@ -1,13 +1,13 @@
 # Basic configuration parameters:
 num_rx: 20
 max_depth: 3
-prim_carrier_freq: 3425e6
-prim_bandwidth: 80e6
+primary_carrier_freq: 3425e6
+primary_bandwidth: 80e6
 sharing_carrier_freq: 6425e6
 sharing_bandwidth: 80e6
-prim_subcarrier_spacing: 15e3 # WiFi 6 subcarrier spacing would be 78.125, may need to change resource grid to properly change
+primary_subcarrier_spacing: 15e3 # WiFi 6 subcarrier spacing would be 78.125, may need to change resource grid to properly change
 sharing_subcarrier_spacing: 15e3
-prim_fft_size: 48
+primary_fft_size: 48
 sharing_fft_size: 48
 block_size: 1352
 batches: 20
@@ -25,8 +25,8 @@ transmitters:
         direction: [0, 0, 0]
         orientation: [0, 0, 0]
         color: [1, 0, 0]
-        prim_power: 35
-        supp_power: 35
+        primary_power: 35
+        sharing_power: 35
         look_at: [32, 0, 10]
 
     tx1:
@@ -35,6 +35,6 @@ transmitters:
         direction: [0, 0, 0]
         orientation: [0, 0, 0]
         color: [1, 0, 0]
-        prim_power: 17
-        supp_power: 17
+        primary_power: 17
+        sharing_power: 17
         look_at: [-30, 23, 10]

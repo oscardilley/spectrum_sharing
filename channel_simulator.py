@@ -6,16 +6,9 @@ Runs link simulators given channel responses using Sionna.
 
 import tensorflow as tf
 import numpy as np
-# import sionna
-# from time import perf_counter
 from sionna.channel import cir_to_ofdm_channel, subcarrier_frequencies, ApplyOFDMChannel #, CIRDataset, OFDMChannel
 from sionna.nr import PUSCHConfig, PUSCHTransmitter, PUSCHReceiver
 from sionna.utils import compute_bler, compute_ber, ebnodb2no
-# from sionna.rt import load_scene, PlanarArray, Transmitter, Receiver, Camera, watt_to_dbm, Camera
-# from hydra import compose, initialize 
-# from omegaconf import OmegaConf
-# import matplotlib.pyplot as plt
-# import matplotlib as mpl
 
 
 class ChannelSimulator(tf.keras.Model):
@@ -88,9 +81,11 @@ class ChannelSimulator(tf.keras.Model):
         self.sinr = None
         self.sinr_no = None
 
-    def update_channel(self, a, tau):
+    def update_channel(self, num_active_tx, a, tau):
         # Call when changing simulation channel without creating new instance - performance benefits with jit compilation.
+        self.num_tx = num_active_tx
         self.h_freq = tf.stack([cir_to_ofdm_channel(self.frequencies, a[:,i:i+1,:,j:j+1,:,:,:], tau[:,i:i+1,j:j+1,:], normalize=True) for j in range(self.num_tx) for i in range(self.num_rx)], axis=0)
+
 
     def update_sinr(self, sinr):
         # Call when changing simulation channel without creating new instance - performance benefits with jit compilation.

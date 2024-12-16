@@ -21,7 +21,8 @@ def plot_motion(episode,
                 ax=None, 
                 save_path="/home/ubuntu/spectrum_sharing/Simulations/"):
     """ Visualising user motion. """
-    [y_max, x_max] = grid.shape
+    y_max = grid.shape[0]
+    x_max = grid.shape[1]
     cmap = plt.get_cmap("tab20b", len(users))
 
     # Users
@@ -31,22 +32,20 @@ def plot_motion(episode,
     dy = [ue["direction"][0] for ue in users.values()]
 
     # Transmitters - positions adjusted to cm coordinate system
-    tx_x_positions = [transmitter["position"][0]/cell_size + int(x_max/2) for transmitter in transmitters.values()]
-    tx_y_positions = [transmitter["position"][1]/cell_size + int(y_max/2) for transmitter in transmitters.values()]
+    tx_x_positions = [transmitter["position"][0]/cell_size + (x_max/2) + 0.5 for transmitter in transmitters.values()]
+    tx_y_positions = [transmitter["position"][1]/cell_size + (y_max/2) + 0.5 for transmitter in transmitters.values()]
 
     # Axis initialisation
     if ax is None or fig is None:
         fig, ax = plt.subplots(figsize=(int(x_max/4), int(y_max/4)), constrained_layout=True)
     
         # Add gridlines
-        ax.set_xticks(np.arange(x_max)-0.5, minor=True)
-        ax.set_yticks(np.arange(y_max)-0.5, minor=True)
-        # ax.grid(which='minor', color='grey', linestyle='-', linewidth=0.1)
-        # ax.grid(which='major', color='black', linestyle='-', linewidth=0)
+        ax.set_xticks(np.arange(x_max), minor=True)
+        ax.set_yticks(np.arange(y_max), minor=True)
         ax.tick_params(which='minor', size=0)  # Remove tick markers for minor grid lines
 
-        ax.set_xlim([0 - 0.5, x_max - 0.5])
-        ax.set_ylim([0 - 0.5, y_max - 0.5])
+        ax.set_xlim([0, x_max])
+        ax.set_ylim([0, y_max])
 
         ax.scatter(
                     tx_x_positions, tx_y_positions, s=250, c="r", marker="*"
@@ -60,12 +59,12 @@ def plot_motion(episode,
 
     # Plotting the coverage map
     cm_db = 10 * tf.math.log(cm) / tf.math.log(10.0)
-    map = ax.imshow(cm_db, cmap=color, origin='lower', alpha=0.7, interpolation="bilinear")
+    map = ax.imshow(cm_db, cmap=color, origin='lower', alpha=0.7, extent=[0, x_max, 0, y_max])
     if episode == 0:
         cbar = fig.colorbar(map, ax=ax, shrink=0.8)
         cbar.set_label("SINR [dB]", fontsize=16) 
-    # grid = grid.numpy()
-    #ax.imshow(np.ma.masked_where(grid > 0, grid), cmap='Greys', origin='lower', alpha=0.6)
+    grid = grid.numpy()
+    ax.imshow(np.ma.masked_where(grid > 0, grid), cmap='Set2', origin='lower', alpha=0.6, extent=[0, x_max, 0, y_max])
 
     # Plot motion vectors
     ax.quiver(
@@ -75,7 +74,7 @@ def plot_motion(episode,
     )
 
     # Labels and title
-    ax.set_title(f"{id} Episode {episode}\n", fontsize=25)
+    ax.set_title(f"\n{id} Episode {episode}\n", fontsize=25)
     ax.set_xlabel("X [Cells]", fontsize=16)
     ax.set_ylabel("Y [Cells]", fontsize=16)
     ax.legend()
@@ -83,9 +82,10 @@ def plot_motion(episode,
     fig.savefig(save_path + f"Scene {id}.png")#, bbox_inches="tight")
 
     for i in range(len(users)):
-        ax.plot([x_positions[i], x_positions[i] + dx[i]], [y_positions[i], y_positions[i] + dy[i]], color=cmap(i), linewidth=2)
+        ax.plot([x_positions[i], x_positions[i] + dx[i]], [y_positions[i], y_positions[i] + dy[i]], color=cmap(i), linewidth=2.5)
     
     return fig, ax
+
 
 def plot_performance(episode,
                      users, 

@@ -11,7 +11,7 @@ from time import perf_counter
 from hydra import compose, initialize 
 
 from plotting import plot_motion, plot_performance
-from utils import update_users
+from utils import update_users, get_throughput, get_spectral_efficiency, get_energy_efficiency
 from scenario_simulator import FullSimulator
 
 def main(cfg):
@@ -20,6 +20,7 @@ def main(cfg):
     e = 0
     users={}
     performance=[]
+    throughput, spectral_efficiency, energy_efficiency = [], [], []
     fig_0, fig_1 = None, None
     ax_0, ax_1 = None, None
     transmitters = dict(cfg.transmitters)
@@ -35,19 +36,21 @@ def main(cfg):
 
         if e == 0:
             print("Initialising")
-            primaryBand = FullSimulator(scene_name=sionna.rt.scene.simple_street_canyon,
-                                        carrier_frequency=cfg.prim_carrier_freq,
-                                        bandwidth=cfg.prim_bandwidth,
+            primaryBand = FullSimulator(prefix="primary",
+                                        scene_name=sionna.rt.scene.simple_street_canyon,
+                                        carrier_frequency=cfg.primary_carrier_freq,
+                                        bandwidth=cfg.primary_bandwidth,
                                         pmax=50, # maximum power
                                         transmitters=transmitters,
                                         num_rx = cfg.num_rx,
                                         max_depth=cfg.max_depth,
                                         cell_size=cfg.cell_size,
                                         initial_state = primaryState,
-                                        subcarrier_spacing = cfg.prim_subcarrier_spacing,
-                                        fft_size = cfg.prim_fft_size,
+                                        subcarrier_spacing = cfg.primary_subcarrier_spacing,
+                                        fft_size = cfg.primary_fft_size,
                                         )
-            sharingBand = FullSimulator(scene_name=sionna.rt.scene.simple_street_canyon,
+            sharingBand = FullSimulator(prefix="sharing",
+                                        scene_name=sionna.rt.scene.simple_street_canyon,
                                         carrier_frequency=cfg.sharing_carrier_freq,
                                         bandwidth=cfg.sharing_bandwidth,
                                         pmax=50, # maximum power
@@ -63,7 +66,23 @@ def main(cfg):
             
         # Generating the initial user positions based on logical OR of validity matrices
         users = update_users(valid_area, cfg.num_rx, users)
-        # Update the transmitters here if required for power etc.
+
+        # Running the simulation
+        primaryOutput = primaryBand(users, primaryState, transmitters) # optionally feed in transmitters if changing
+        sharingOutput = sharingBand(users, sharingState, transmitters)
+        performance.append({"Primary": primaryOutput, "Sharing": sharingOutput})
+
+        # Plotting the performance and motion
+        if len(performance) > max_results_length: # managing stored results size
+            performance = performance[-1*max_results_length:]
+
+        # Plotting the performance
+        if e >= 1:
+            plot_performance(episode=e,
+                            users=users,
+                            performance=performance, 
+                            save_path=cfg.images_path)
+            
         primary_sinr_map = primaryBand.cm.sinr
         sharing_sinr_map = sharingBand.cm.sinr
         fig_0, ax_0 = plot_motion(episode=e, 
@@ -88,26 +107,33 @@ def main(cfg):
                                   fig=fig_1,
                                   ax=ax_1, 
                                   save_path=cfg.images_path)
-       
-        # Running the simulation
-        primaryOutput = primaryBand(users, primaryState) # optionally feed in transmitters if changing
-        sharingOutput = sharingBand(users, sharingState)
-        performance.append({"Primary": primaryOutput, "Sharing": sharingOutput})
-        if len(performance) > max_results_length: # managing stored results size
-            performance = performance[-1*max_results_length:]
 
-        # Plotting the performance
-        if e >= 1:
-            plot_performance(episode=e,
-                            users=users,
-                            performance=performance, 
-                            save_path=cfg.images_path)
+        # Calculating rewards
+        throughput.append(get_throughput(primaryOutput["ber"], sharingOutput["ber"]))
+        spectral_efficiency.append(get_spectral_efficiency(primaryState, 
+                                                           sharingState, 
+                                                           transmitters,
+                                                           cfg.primary_bandwidth,
+                                                           cfg.sharing_bandwidth))
+        energy_efficiency.append(get_energy_efficiency(primaryState, 
+                                                       sharingState, 
+                                                       transmitters,
+                                                       cfg.primary_bandwidth,
+                                                       cfg.sharing_bandwidth))
 
-        # Processing the outputs (over time) and determining next state
+        # Plotting objectives/ rewards
+
+
+
+
 
         # Decision making:
+
+        # NB: we don't need to take a decision every time
+
         primaryState = tf.ones(shape=(num_tx), dtype=tf.bool)
-        sharingState = tf.ones(shape=(num_tx), dtype=tf.bool)
+        sharingState = tf.convert_to_tensor([False, True], dtype=tf.bool)
+        transmitters = transmitters
 
         # Iterate to next episode
         e += 1
