@@ -29,6 +29,7 @@ class FullSimulator:
                  initial_state,
                  subcarrier_spacing,
                  fft_size,
+                 batch_size,
                  num_time_steps=14,
                  ):
         
@@ -50,7 +51,7 @@ class FullSimulator:
         self.subcarrier_spacing = subcarrier_spacing
         self.fft_size = fft_size
         self.num_time_steps = num_time_steps
-        self.block_size = 1352
+        self.batch_size = batch_size
 
         # Instantiating the channel simulator:
         self.simulator = ChannelSimulator(self.num_tx, 
@@ -60,9 +61,9 @@ class FullSimulator:
 
         # Creating the scene
         self.scene = self._create_scene()
-        self.cm, _ = self._coverage_map(init=True)
-        self.grid = self._validity_matrix()
+        _, area = self._coverage_map(init=True) # used to determine all possible valid areas
         self.cm, self.sinr = self._coverage_map(init=False) # correcting power levels
+        self.grid = self._validity_matrix(self.cm.num_cells_x, self.cm.num_cells_y, area)
 
 
     def _create_scene(self):
@@ -123,13 +124,11 @@ class FullSimulator:
         
         return cm, cm.sinr # [num_tx, num_cells_y, num_cells_x], tf.float
     
-    def _validity_matrix(self):
+    def _validity_matrix(self, x_max, y_max, valid_area):
         """ Calculating the valid user area"""
-        x_max = self.cm.num_cells_x
-        y_max = self.cm.num_cells_y
 
         grid = tf.zeros((y_max, x_max), dtype=tf.bool)
-        validity_matrix = tf.reduce_sum(self.cm.sinr, axis=0) # [num_tx, num_cells_y, num_cells_x] -> [num_cells_y, num_cells_x], tf.float
+        validity_matrix = tf.reduce_sum(valid_area, axis=0) # [num_tx, num_cells_y, num_cells_x] -> [num_cells_y, num_cells_x], tf.float
         for y in range(y_max):
             for x in range(x_max):
                 if validity_matrix[y,x] != 0:
@@ -152,33 +151,34 @@ class FullSimulator:
         paths = self.scene.compute_paths(max_depth=self.max_depth, diffraction=True)
         paths.normalize_delays = False
         
-        paths.apply_doppler(sampling_frequency=self.subcarrier_spacing, # Set to 15e3 Hz
+        paths.apply_doppler(sampling_frequency=self.subcarrier_spacing,
                             num_time_steps=self.num_time_steps, # Number of OFDM symbols
                             tx_velocities=[self.cell_size * tf.convert_to_tensor(transmitter["direction"], dtype=tf.int64) for transmitter in self.transmitters.values()], # [batch_size, num_tx, 3] shape
                             rx_velocities=[self.cell_size * receiver["direction"] for receiver in receivers.values()]) # [batch_size, num_rx, 3] shape
+       
         a, tau = paths.cir(los=True)
         num_active_tx = int(tf.reduce_sum(tf.cast(self.state, tf.int32)))
         self.simulator.update_channel(num_active_tx, a, tau)
         self.simulator.update_sinr(per_rx_sinr)
 
         # Bit level simulation
-        ber, sinr = self.simulator(block_size=self.block_size)
+        bler, sinr = self.simulator(block_size=self.batch_size)
 
-        bers = []
+        blers = [] # can be used to estimate throughput
         sinrs = []
         count = 0
 
         # Handling dynamic size of state:
         for state in self.state:
             if bool(state) is True:
-                bers.append(tf.clip_by_value(ber[count], -1e5, 1e5))
-                sinrs.append(sinr[count])
+                blers.append(bler[count])
+                sinrs.append(tf.clip_by_value(sinr[count], -1e5, 1e5))
                 count += 1
             else:
-                bers.append(tf.zeros(self.num_rx, dtype=tf.float64))
-                sinrs.append(tf.zeros(self.num_rx, dtype=tf.float32))
+                blers.append(tf.ones(self.num_rx, dtype=tf.float64))
+                sinrs.append(tf.constant(-1e5, shape=(self.num_rx), dtype=tf.float32)) # SINR in dB so need to force to -inf
             
-        results = {"ber": tf.stack(bers), "sinr": tf.stack(sinrs)}
+        results = {"bler": tf.stack(blers), "sinr": tf.stack(sinrs)}
 
         return results
 

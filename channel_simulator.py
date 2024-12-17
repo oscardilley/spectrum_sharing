@@ -68,9 +68,10 @@ class ChannelSimulator(tf.keras.Model):
         self.num_rx = num_rx
 
         # Initialising the PUSCH components (there is PUSCH and PDSCH symmetry):
-        self.pusch_config = PUSCHConfig() # Init pusch_transmitter with default settings 
+        self.pusch_config = PUSCHConfig(subcarrier_spacing = subcarrier_spacing / 1000) # Init pusch_transmitter with default settings 
+        self.pusch_config.carrier.n_size_grid = int(fft_size / 12) # 12 subcarriers in a RB in 5G NR
         self.channel = ApplyOFDMChannel(add_awgn=True)
-        # self.pusch_config.show() 
+        #self.pusch_config.show() 
         self.pusch_transmitter = PUSCHTransmitter(self.pusch_config) 
         self.pusch_receiver = PUSCHReceiver(self.pusch_transmitter) 
 
@@ -103,14 +104,14 @@ class ChannelSimulator(tf.keras.Model):
         h, noise = ins
         y = self.channel([self.x, h, noise]) # noise is due to the physical channel effects and noise
         b_hat = self.pusch_receiver([y, noise]) # noise if used for decoding
-        ber = compute_ber(self.b, b_hat)
-        return ber
+        bler = compute_bler(self.b, b_hat)
+        return bler
 
     # Do not use @tf.function as attributes will not update
     def call(self, block_size):
-        self.x, self.b = self.pusch_transmitter(block_size)    
+        self.x, self.b = self.pusch_transmitter(block_size)  
 
-        ber_per_link = tf.map_fn(self.iterate, elems=(self.h_freq, self.sinr_no), fn_output_signature=tf.float64)
+        bler_per_link = tf.map_fn(self.iterate, elems=(self.h_freq, self.sinr_no), fn_output_signature=tf.float64)
  
-        return tf.reshape(ber_per_link, (self.num_tx, self.num_rx)), tf.reshape(self.sinr, (self.num_tx, self.num_rx))
+        return tf.reshape(bler_per_link, (self.num_tx, self.num_rx)), tf.reshape(self.sinr, (self.num_tx, self.num_rx))
 

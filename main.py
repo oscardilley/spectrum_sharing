@@ -21,11 +21,10 @@ def main(cfg):
     users={}
     performance=[]
     throughput, spectral_efficiency, energy_efficiency = [], [], []
-    fig_0, fig_1 = None, None
-    ax_0, ax_1 = None, None
+    fig_0, fig_1, fig_2 = None, None, None
+    ax_0, ax_1, ax_2 = None, None, None
     transmitters = dict(cfg.transmitters)
     num_tx = len(transmitters)
-    primaryState = tf.ones(shape=(num_tx), dtype=tf.bool)
     sharingState = tf.ones(shape=(num_tx), dtype=tf.bool)
     max_results_length = cfg.max_results_length
 
@@ -36,23 +35,40 @@ def main(cfg):
 
         if e == 0:
             print("Initialising")
-            primaryBand = FullSimulator(prefix="primary",
-                                        scene_name=sionna.rt.scene.simple_street_canyon,
-                                        carrier_frequency=cfg.primary_carrier_freq,
-                                        bandwidth=cfg.primary_bandwidth,
-                                        pmax=50, # maximum power
-                                        transmitters=transmitters,
-                                        num_rx = cfg.num_rx,
-                                        max_depth=cfg.max_depth,
-                                        cell_size=cfg.cell_size,
-                                        initial_state = primaryState,
-                                        subcarrier_spacing = cfg.primary_subcarrier_spacing,
-                                        fft_size = cfg.primary_fft_size,
-                                        )
+            # Setting up the primary coverage bands for each transmitter - note this all needs adapting for > 2 transmitters.
+            primaryBand1 = FullSimulator(prefix="primary",
+                                         scene_name=sionna.rt.scene.simple_street_canyon,
+                                         carrier_frequency=cfg.primary_carrier_freq_1,
+                                         bandwidth=cfg.primary_fft_size * cfg.primary_subcarrier_spacing,
+                                         pmax=50, # maximum power
+                                         transmitters=transmitters,
+                                         num_rx = cfg.num_rx,
+                                         max_depth=cfg.max_depth,
+                                         cell_size=cfg.cell_size,
+                                         initial_state = tf.convert_to_tensor([True, False], dtype=tf.bool),
+                                         subcarrier_spacing = cfg.primary_subcarrier_spacing,
+                                         fft_size = cfg.primary_fft_size,
+                                         batch_size=cfg.batch_size,
+                                         )
+            primaryBand2 = FullSimulator(prefix="primary",
+                                         scene_name=sionna.rt.scene.simple_street_canyon,
+                                         carrier_frequency=cfg.primary_carrier_freq_2,
+                                         bandwidth=cfg.primary_fft_size * cfg.primary_subcarrier_spacing,
+                                         pmax=50, # maximum power
+                                         transmitters=transmitters,
+                                         num_rx = cfg.num_rx,
+                                         max_depth=cfg.max_depth,
+                                         cell_size=cfg.cell_size,
+                                         initial_state = tf.convert_to_tensor([False, True], dtype=tf.bool),
+                                         subcarrier_spacing = cfg.primary_subcarrier_spacing,
+                                         fft_size = cfg.primary_fft_size,
+                                         batch_size=cfg.batch_size,
+                                         )
+            # Setting up the sharing band
             sharingBand = FullSimulator(prefix="sharing",
                                         scene_name=sionna.rt.scene.simple_street_canyon,
                                         carrier_frequency=cfg.sharing_carrier_freq,
-                                        bandwidth=cfg.sharing_bandwidth,
+                                        bandwidth=cfg.primary_fft_size * cfg.primary_subcarrier_spacing,
                                         pmax=50, # maximum power
                                         transmitters=transmitters,
                                         num_rx = cfg.num_rx,
@@ -61,15 +77,21 @@ def main(cfg):
                                         initial_state = sharingState,
                                         subcarrier_spacing = cfg.sharing_subcarrier_spacing,
                                         fft_size = cfg.sharing_fft_size,
+                                        batch_size=cfg.batch_size,
                                         )
-            valid_area = tf.math.logical_or(primaryBand.grid, sharingBand.grid) # shape [y_max, x_max]
+            
+            valid_area = tf.math.logical_or(tf.math.logical_or(primaryBand1.grid, primaryBand2.grid), sharingBand.grid) # shape [y_max, x_max]
             
         # Generating the initial user positions based on logical OR of validity matrices
         users = update_users(valid_area, cfg.num_rx, users)
 
-        # Running the simulation
-        primaryOutput = primaryBand(users, primaryState, transmitters) # optionally feed in transmitters if changing
+        # Running the simulation - with separated primary bands
+        primaryOutput1 = primaryBand1(users, tf.convert_to_tensor([True, False], dtype=tf.bool), transmitters) 
+        primaryOutput2 = primaryBand2(users, tf.convert_to_tensor([False, True], dtype=tf.bool), transmitters)
         sharingOutput = sharingBand(users, sharingState, transmitters)
+
+        # Combining the primary bands for the different transmitters:
+        primaryOutput = {"bler": tf.stack([primaryOutput1["bler"][0,:], primaryOutput2["bler"][1,:]]), "sinr": tf.stack([primaryOutput1["sinr"][0,:], primaryOutput2["sinr"][1,:]])}
         performance.append({"Primary": primaryOutput, "Sharing": sharingOutput})
 
         # Plotting the performance and motion
@@ -83,12 +105,13 @@ def main(cfg):
                             performance=performance, 
                             save_path=cfg.images_path)
             
-        primary_sinr_map = primaryBand.cm.sinr
-        sharing_sinr_map = sharingBand.cm.sinr
+        primary_sinr_map_1 = primaryBand1.sinr
+        primary_sinr_map_2 = primaryBand2.sinr
+        sharing_sinr_map = sharingBand.sinr
         fig_0, ax_0 = plot_motion(episode=e, 
-                                  id="Primary Band, Max SINR - ", 
+                                  id="Primary Band 1, SINR", 
                                   grid=valid_area, 
-                                  cm=tf.reduce_max(primary_sinr_map, axis=0), 
+                                  cm=tf.reduce_max(primary_sinr_map_1, axis=0), 
                                   color="inferno",
                                   users=users, 
                                   transmitters=transmitters, 
@@ -96,30 +119,45 @@ def main(cfg):
                                   fig=fig_0,
                                   ax=ax_0, 
                                   save_path=cfg.images_path)
-        fig_1, ax_1  = plot_motion(episode=e, 
-                                  id="Sharing Band, Max SINR - ", 
+        fig_1, ax_1 = plot_motion(episode=e, 
+                                  id="Primary Band 2, SINR", 
                                   grid=valid_area, 
-                                  cm=tf.reduce_max(sharing_sinr_map, axis=0), 
-                                  color="viridis",
+                                  cm=tf.reduce_max(primary_sinr_map_2, axis=0), 
+                                  color="inferno",
                                   users=users, 
                                   transmitters=transmitters, 
                                   cell_size=cfg.cell_size, 
                                   fig=fig_1,
                                   ax=ax_1, 
                                   save_path=cfg.images_path)
+        fig_2, ax_2  = plot_motion(episode=e, 
+                                  id="Sharing Band, Max SINR", 
+                                  grid=valid_area, 
+                                  cm=tf.reduce_max(sharing_sinr_map, axis=0), 
+                                  color="viridis",
+                                  users=users, 
+                                  transmitters=transmitters, 
+                                  cell_size=cfg.cell_size, 
+                                  fig=fig_2,
+                                  ax=ax_2, 
+                                  save_path=cfg.images_path)
 
         # Calculating rewards
-        throughput.append(get_throughput(primaryOutput["ber"], sharingOutput["ber"]))
-        spectral_efficiency.append(get_spectral_efficiency(primaryState, 
-                                                           sharingState, 
-                                                           transmitters,
-                                                           cfg.primary_bandwidth,
-                                                           cfg.sharing_bandwidth))
-        energy_efficiency.append(get_energy_efficiency(primaryState, 
-                                                       sharingState, 
-                                                       transmitters,
-                                                       cfg.primary_bandwidth,
-                                                       cfg.sharing_bandwidth))
+
+        # Abstract throughput by dividing by the number of users,
+        # Also calculate the bandwidth here - check it is all logical and adds up 
+
+        # throughput.append(get_throughput(primaryOutput["bler"], sharingOutput["bler"]))
+        # spectral_efficiency.append(get_spectral_efficiency(primaryState, 
+        #                                                    sharingState, 
+        #                                                    transmitters,
+        #                                                    cfg.primary_bandwidth,
+        #                                                    cfg.sharing_bandwidth))
+        # energy_efficiency.append(get_energy_efficiency(primaryState, 
+        #                                                sharingState, 
+        #                                                transmitters,
+        #                                                cfg.primary_bandwidth,
+        #                                                cfg.sharing_bandwidth))
 
         # Plotting objectives/ rewards
 
@@ -131,8 +169,12 @@ def main(cfg):
 
         # NB: we don't need to take a decision every time
 
-        primaryState = tf.ones(shape=(num_tx), dtype=tf.bool)
-        sharingState = tf.convert_to_tensor([False, True], dtype=tf.bool)
+        # NB: need to consider the impact of time
+
+        if e == 2:
+            sharingState = tf.convert_to_tensor([False, True], dtype=tf.bool)
+        elif e == 4: 
+            sharingState = tf.convert_to_tensor([True, False], dtype=tf.bool)
         transmitters = transmitters
 
         # Iterate to next episode

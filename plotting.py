@@ -93,13 +93,13 @@ def plot_performance(episode,
                      fig=None, 
                      ax=None, 
                      save_path="/home/ubuntu/spectrum_sharing/Simulations/"):
-    """ Plotting the BER and SNR for the users. """
+    """ Plotting the BLER and SNR for the users. """
     length = len(performance)
     x = np.linspace(episode + 1 - length, episode, length)
 
     # Extracting data
-    primary_ber = tf.stack([results["Primary"]["ber"] for results in performance])
-    sharing_ber = tf.stack([results["Sharing"]["ber"] for results in performance])
+    primary_bler = tf.stack([results["Primary"]["bler"] for results in performance])
+    sharing_bler = tf.stack([results["Sharing"]["bler"] for results in performance])
     primary_sinr = tf.stack([results["Primary"]["sinr"] for results in performance])
     sharing_sinr = tf.stack([results["Sharing"]["sinr"] for results in performance])
 
@@ -123,25 +123,25 @@ def plot_performance(episode,
             y_pos = round(float(users[f"ue{ue}"]["position"][0]), 2)
             ax1.set_title(f"UE {ue} at ({x_pos},{y_pos})", fontdict={'color': cmap(ue), 'weight': 'bold', 'fontsize': 16})
             ax1.set_xlabel("Episode")
-            ax1.set_ylabel("BER")
-            ax1.set_ylim([-0.05, 0.55])
+            ax1.set_ylabel("BLER")
+            ax1.set_ylim([-0.05, 1.05])
             ax1.set_xlim([x[0], x[-1]])
             ax1.set_xticks(x, x)
             ax2 = ax1.twinx()
             ax2.set_ylabel("SINR [dB]")
             ax2.set_ylim([-80, 70])
-            berP0, = ax1.plot(x, primary_ber[:,0,ue], linestyle="dashed", color="orangered", alpha=0.8)
-            berP1, = ax1.plot(x, primary_ber[:,1,ue], linestyle="dashed", color="darkred", alpha=0.8)
+            blerP0, = ax1.plot(x, primary_bler[:,0,ue], linestyle="dashed", color="orangered", alpha=0.8)
+            blerP1, = ax1.plot(x, primary_bler[:,1,ue], linestyle="dashed", color="darkred", alpha=0.8)
             sinrP0, = ax2.plot(x, primary_sinr[:,0,ue], linestyle="solid", color="orangered", alpha=0.8)
             sinrP1, = ax2.plot(x, primary_sinr[:,1,ue], linestyle="solid", color="darkred", alpha=0.8)
-            berS0, = ax1.plot(x, sharing_ber[:,0,ue], linestyle="dashed", color="steelblue", alpha=0.8)
-            berS1, = ax1.plot(x, sharing_ber[:,1,ue], linestyle="dashed", color="darkturquoise", alpha=0.8)
+            blerS0, = ax1.plot(x, sharing_bler[:,0,ue], linestyle="dashed", color="steelblue", alpha=0.8)
+            blerS1, = ax1.plot(x, sharing_bler[:,1,ue], linestyle="dashed", color="darkturquoise", alpha=0.8)
             sinrS0, = ax2.plot(x, sharing_sinr[:,0,ue], linestyle="solid", color="steelblue", alpha=0.8)
             sinrS1, = ax2.plot(x, sharing_sinr[:,1,ue], linestyle="solid", color="darkturquoise", alpha=0.8)
             ue += 1
 
-    fig.legend((berP0, berP1, sinrP0, sinrP1, berS0, berS1, sinrS0, sinrS1),
-               ("Primary BER TX0", "Primary BER TX1", "Primary SINR TX0", "Primary SINR TX1", "Secondary BER TX0", "Secondary BER TX1", "Secondary SINR TX0", "Secondary SINR TX1"),
+    fig.legend((blerP0, blerP1, sinrP0, sinrP1, blerS0, blerS1, sinrS0, sinrS1),
+               ("Primary BLER TX0", "Primary BLER TX1", "Primary SINR TX0", "Primary SINR TX1", "Secondary BLER TX0", "Secondary BLER TX1", "Secondary SINR TX0", "Secondary SINR TX1"),
                loc="outside right center")
     fig.savefig(save_path + f"UE_performance.png", dpi=400)
 
