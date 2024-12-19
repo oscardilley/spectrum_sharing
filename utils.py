@@ -48,13 +48,21 @@ def update_users(grid, num_users, users, max_move=2):
 
     return users
 
-def get_throughput():
+def get_throughput(rates):
     """ Calculate average link level throughput. """
 
-    return
+    return tf.reduce_sum(rates), tf.reduce_sum(rates, axis=[0,1]), tf.reduce_sum(rates, axis=2)
 
-def get_spectral_efficiency():
+def get_spectral_efficiency(primary_bw, sharing_bw, per_ap_per_band_throughput):
     """ Calculate average spectral efficiency. """
+    primary_se = tf.reduce_sum(tf.stack([per_ap_per_band_throughput[0,:] / primary_bw, per_ap_per_band_throughput[1,:] / primary_bw]) ,axis=0)
+    sharing_se = per_ap_per_band_throughput[2,:] / sharing_bw
+    combined = tf.stack([primary_se, sharing_se])
+
+    return tf.reduce_mean(combined), combined
+
+def get_spectrum_utilisation(primary_bw, sharing_bw, sharing_state, per_ap_per_band_throughput):
+    """ Calculate how much of the spectrum is used. """
 
     return
 

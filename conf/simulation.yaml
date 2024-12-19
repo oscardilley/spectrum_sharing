@@ -6,7 +6,7 @@ primary_carrier_freq_2: 4145e6
 sharing_carrier_freq: 6425e6
 primary_subcarrier_spacing: 15e3 # WiFi 6 subcarrier spacing would be 78.125, may need to change resource grid to properly change
 sharing_subcarrier_spacing: 30e3 # Changing this will change the number of slots per frame
-primary_fft_size: 252 # needs to be a power of 12RBs - will be rounded to power of 2 fft internally
+primary_fft_size: 120 # needs to be a power of 12RBs - will be rounded to power of 2 fft internally
 sharing_fft_size: 324
 batch_size: 1000 # also corresponds to time between episodes when subcarrier_spacing is considered
 ebno_db: 2.0

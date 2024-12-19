@@ -11,7 +11,7 @@ from time import perf_counter
 from hydra import compose, initialize 
 
 from plotting import plot_motion, plot_performance
-from utils import update_users, get_throughput, get_spectral_efficiency, get_energy_efficiency
+from utils import update_users, get_throughput, get_spectral_efficiency, get_energy_efficiency, get_spectrum_utilisation
 from scenario_simulator import FullSimulator
 
 def main(cfg):
@@ -20,13 +20,15 @@ def main(cfg):
     e = 0
     users={}
     performance=[]
-    throughput, spectral_efficiency, energy_efficiency = [], [], []
+    throughput, spectral_efficiency, spectrum_utilisation, energy_efficiency = [], [], [], []
     fig_0, fig_1, fig_2 = None, None, None
     ax_0, ax_1, ax_2 = None, None, None
     transmitters = dict(cfg.transmitters)
     num_tx = len(transmitters)
     sharingState = tf.ones(shape=(num_tx), dtype=tf.bool)
     max_results_length = cfg.max_results_length
+    primary_bandwidth = cfg.primary_fft_size * cfg.primary_subcarrier_spacing
+    sharing_bandwidth = cfg.primary_fft_size * cfg.primary_subcarrier_spacing
 
     # Starting simulator
     while e < 10:
@@ -39,7 +41,7 @@ def main(cfg):
             primaryBand1 = FullSimulator(prefix="primary",
                                          scene_name=sionna.rt.scene.simple_street_canyon,
                                          carrier_frequency=cfg.primary_carrier_freq_1,
-                                         bandwidth=cfg.primary_fft_size * cfg.primary_subcarrier_spacing,
+                                         bandwidth=primary_bandwidth,
                                          pmax=50, # maximum power
                                          transmitters=transmitters,
                                          num_rx = cfg.num_rx,
@@ -53,7 +55,7 @@ def main(cfg):
             primaryBand2 = FullSimulator(prefix="primary",
                                          scene_name=sionna.rt.scene.simple_street_canyon,
                                          carrier_frequency=cfg.primary_carrier_freq_2,
-                                         bandwidth=cfg.primary_fft_size * cfg.primary_subcarrier_spacing,
+                                         bandwidth=primary_bandwidth,
                                          pmax=50, # maximum power
                                          transmitters=transmitters,
                                          num_rx = cfg.num_rx,
@@ -68,7 +70,7 @@ def main(cfg):
             sharingBand = FullSimulator(prefix="sharing",
                                         scene_name=sionna.rt.scene.simple_street_canyon,
                                         carrier_frequency=cfg.sharing_carrier_freq,
-                                        bandwidth=cfg.primary_fft_size * cfg.primary_subcarrier_spacing,
+                                        bandwidth=sharing_bandwidth,
                                         pmax=50, # maximum power
                                         transmitters=transmitters,
                                         num_rx = cfg.num_rx,
@@ -143,16 +145,15 @@ def main(cfg):
                                   save_path=cfg.images_path)
 
         # Calculating rewards
-
-        # Abstract throughput by dividing by the number of users,
-        # Also calculate the bandwidth here - check it is all logical and adds up 
-
-        # throughput.append(get_throughput(primaryOutput["bler"], sharingOutput["bler"]))
-        # spectral_efficiency.append(get_spectral_efficiency(primaryState, 
-        #                                                    sharingState, 
-        #                                                    transmitters,
-        #                                                    cfg.primary_bandwidth,
-        #                                                    cfg.sharing_bandwidth))
+        rates = tf.stack([primaryOutput1["rate"], primaryOutput2["rate"], sharingOutput["rate"]])
+        total_throughput, per_ue_throughput, per_ap_per_band_throughput = get_throughput(rates)
+        total_se, per_ap_se = get_spectral_efficiency(primary_bandwidth, 
+                                                      sharing_bandwidth,
+                                                      per_ap_per_band_throughput)
+        total_su, per_ap_su = get_spectrum_utilisation(primary_bandwidth, 
+                                                       sharing_bandwidth,
+                                                       sharingState, 
+                                                       per_ap_per_band_throughput)
         # energy_efficiency.append(get_energy_efficiency(primaryState, 
         #                                                sharingState, 
         #                                                transmitters,
