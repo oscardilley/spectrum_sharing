@@ -9,9 +9,10 @@ import tensorflow as tf
 import sionna
 from time import perf_counter
 from hydra import compose, initialize 
+import numpy as np
 
 from plotting import plot_motion, plot_performance
-from utils import update_users, get_throughput, get_spectral_efficiency, get_energy_efficiency, get_spectrum_utilisation
+from utils import update_users, get_throughput, get_spectral_efficiency, get_power_efficiency, get_spectrum_utility
 from scenario_simulator import FullSimulator
 
 def main(cfg):
@@ -25,7 +26,7 @@ def main(cfg):
     ax_0, ax_1, ax_2 = None, None, None
     transmitters = dict(cfg.transmitters)
     num_tx = len(transmitters)
-    sharingState = tf.ones(shape=(num_tx), dtype=tf.bool)
+    sharing_state = tf.ones(shape=(num_tx), dtype=tf.bool)
     max_results_length = cfg.max_results_length
     primary_bandwidth = cfg.primary_fft_size * cfg.primary_subcarrier_spacing
     sharing_bandwidth = cfg.primary_fft_size * cfg.primary_subcarrier_spacing
@@ -76,7 +77,7 @@ def main(cfg):
                                         num_rx = cfg.num_rx,
                                         max_depth=cfg.max_depth,
                                         cell_size=cfg.cell_size,
-                                        initial_state = sharingState,
+                                        initial_state = sharing_state,
                                         subcarrier_spacing = cfg.sharing_subcarrier_spacing,
                                         fft_size = cfg.sharing_fft_size,
                                         batch_size=cfg.batch_size,
@@ -90,7 +91,7 @@ def main(cfg):
         # Running the simulation - with separated primary bands
         primaryOutput1 = primaryBand1(users, tf.convert_to_tensor([True, False], dtype=tf.bool), transmitters) 
         primaryOutput2 = primaryBand2(users, tf.convert_to_tensor([False, True], dtype=tf.bool), transmitters)
-        sharingOutput = sharingBand(users, sharingState, transmitters)
+        sharingOutput = sharingBand(users, sharing_state, transmitters)
 
         # Combining the primary bands for the different transmitters:
         primaryOutput = {"bler": tf.stack([primaryOutput1["bler"][0,:], primaryOutput2["bler"][1,:]]), "sinr": tf.stack([primaryOutput1["sinr"][0,:], primaryOutput2["sinr"][1,:]])}
@@ -147,15 +148,33 @@ def main(cfg):
         # Calculating rewards
         rates = tf.stack([primaryOutput1["rate"], primaryOutput2["rate"], sharingOutput["rate"]])
         total_throughput, per_ue_throughput, per_ap_per_band_throughput = get_throughput(rates)
+
+        primary_power = tf.convert_to_tensor(np.power(10, (np.array([tx["primary_power"] for tx in transmitters.values()]) - 30) / 10), dtype=tf.float32)
+        sharing_power = tf.convert_to_tensor(np.power(10, (np.array([tx["sharing_power"] for tx in transmitters.values()]) - 30) / 10), dtype=tf.float32)
+        mu_pa = tf.convert_to_tensor([tx["mu_pa"] for tx in transmitters.values()])
+        total_pe, per_ap_pe = get_power_efficiency(primary_bandwidth, # integral over power efficiency over time is energy efficiency
+                                                   sharing_bandwidth,
+                                                   sharing_state,
+                                                   primary_power,
+                                                   sharing_power,
+                                                   mu_pa)
+        print(total_pe)
+        print(per_ap_pe)
+
         total_se, per_ap_se = get_spectral_efficiency(primary_bandwidth, 
                                                       sharing_bandwidth,
                                                       per_ap_per_band_throughput)
-        total_su, per_ap_su = get_spectrum_utilisation(primary_bandwidth, 
-                                                       sharing_bandwidth,
-                                                       sharingState, 
-                                                       per_ap_per_band_throughput)
+        
+        total_su = get_spectrum_utility(primary_bandwidth,
+                                                   sharing_bandwidth,
+                                                   sharing_state,
+                                                   total_throughput)
+        
+        # Plotting the reward functions:
+        print(total_su)
+        
         # energy_efficiency.append(get_energy_efficiency(primaryState, 
-        #                                                sharingState, 
+        #                                                sharing_state, 
         #                                                transmitters,
         #                                                cfg.primary_bandwidth,
         #                                                cfg.sharing_bandwidth))
@@ -173,9 +192,9 @@ def main(cfg):
         # NB: need to consider the impact of time
 
         if e == 2:
-            sharingState = tf.convert_to_tensor([False, True], dtype=tf.bool)
+            sharing_state = tf.convert_to_tensor([False, True], dtype=tf.bool)
         elif e == 4: 
-            sharingState = tf.convert_to_tensor([True, False], dtype=tf.bool)
+            sharing_state = tf.convert_to_tensor([True, False], dtype=tf.bool)
         transmitters = transmitters
 
         # Iterate to next episode

@@ -23,9 +23,10 @@ transmitters:
         direction: [0, 0, 0]
         orientation: [0, 0, 0]
         color: [1, 0, 0]
-        primary_power: 35
-        sharing_power: 35
+        primary_power: 35.0
+        sharing_power: 35.0
         look_at: [32, 0, 10]
+        mu_pa: 0.5
 
     tx1:
         name: "tx1"
@@ -33,6 +34,7 @@ transmitters:
         direction: [0, 0, 0]
         orientation: [0, 0, 0]
         color: [1, 0, 0]
-        primary_power: 17
-        sharing_power: 17
+        primary_power: 17.0
+        sharing_power: 17.0
         look_at: [-30, 23, 10]
+        mu_pa: 0.4

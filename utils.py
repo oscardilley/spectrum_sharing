@@ -53,20 +53,26 @@ def get_throughput(rates):
 
     return tf.reduce_sum(rates), tf.reduce_sum(rates, axis=[0,1]), tf.reduce_sum(rates, axis=2)
 
+def get_power_efficiency(primary_bw, sharing_bw, sharing_state, primary_power, sharing_power, mu_pa):
+    """ Calculate average power efficiency in W/Hz which is later abstracted to energy efficiency. """
+    primary_pe = (primary_power / mu_pa) / primary_bw
+    sharing_pe = (tf.cast(sharing_state, tf.float32) * (sharing_power / mu_pa)) / sharing_bw
+    combined_pe = primary_pe + sharing_pe
+
+    return tf.reduce_sum(combined_pe), combined_pe
+
 def get_spectral_efficiency(primary_bw, sharing_bw, per_ap_per_band_throughput):
     """ Calculate average spectral efficiency. """
-    primary_se = tf.reduce_sum(tf.stack([per_ap_per_band_throughput[0,:] / primary_bw, per_ap_per_band_throughput[1,:] / primary_bw]) ,axis=0)
-    sharing_se = per_ap_per_band_throughput[2,:] / sharing_bw
+    primary_se = tf.reduce_sum(tf.stack([per_ap_per_band_throughput[bs,:] / primary_bw for bs in range(int(per_ap_per_band_throughput.shape[1]))]) ,axis=0) # for separated primary bands
+    sharing_se = per_ap_per_band_throughput[2,:] / sharing_bw # single sharing band - easier calculation
     combined = tf.stack([primary_se, sharing_se])
 
     return tf.reduce_mean(combined), combined
 
-def get_spectrum_utilisation(primary_bw, sharing_bw, sharing_state, per_ap_per_band_throughput):
+def get_spectrum_utility(primary_bw, sharing_bw, sharing_state, total_throughput):
     """ Calculate how much of the spectrum is used. """
+    num_bs = tf.cast(sharing_state.shape[0], dtype=tf.float32)
+    total_primary_spectrum = tf.reduce_sum(num_bs * primary_bw)
+    total_sharing_spectrum = tf.reduce_sum(tf.cast(sharing_state, tf.float32) * sharing_bw)
 
-    return
-
-def get_energy_efficiency():
-    """ Calculate average energy efficiency. """
-
-    return
+    return  tf.cast(total_throughput, dtype=tf.float32) /(total_primary_spectrum + total_sharing_spectrum)
