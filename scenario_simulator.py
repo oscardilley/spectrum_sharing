@@ -60,12 +60,22 @@ class FullSimulator:
                                           self.fft_size)
 
         # Creating the scene
+        self.scene= None
+        self.cm = None
+        self.sinr = None
+        self.grid = None
+        self._scene_init()
+
+
+    def _scene_init(self):
+        """ Initialising the scene. """
         self.scene = self._create_scene()
         _, area = self._coverage_map(init=True) # used to determine all possible valid areas
         self.cm, self.sinr = self._coverage_map(init=False) # correcting power levels
         self.grid = self._validity_matrix(self.cm.num_cells_x, self.cm.num_cells_y, area)
+        return
 
-
+    
     def _create_scene(self):
         """ Creating the simulation scene, only called once during intialisation."""
         sn = load_scene(self.scene_name)
@@ -211,3 +221,8 @@ class FullSimulator:
         self.receivers = receivers
 
         return tf.concat(per_rx_sinr_db, axis=0) 
+    
+    def reset(self):
+        """ Resetting the simulator."""
+
+        return self._scene_init()

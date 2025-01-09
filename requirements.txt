@@ -6,3 +6,4 @@ hydra-core
 tinydb
 runipy
 pandas
+gymnasium
