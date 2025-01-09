@@ -1,4 +1,5 @@
 # Basic configuration parameters:
+episodes: 20
 num_rx: 20
 max_depth: 3
 primary_carrier_freq_1: 3425e6

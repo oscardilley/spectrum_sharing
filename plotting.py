@@ -9,6 +9,30 @@ import matplotlib as mpl
 import tensorflow as tf
 import numpy as np
 
+def plot_rewards(episode,
+                 rewards,
+                 save_path="/home/ubuntu/spectrum_sharing/Simulations/"):
+    """ Plot reward functions over time."""
+    # Axis initialisation
+    reward_labels = ["Total Throughput", "Spectral Efficiency", "Power Efficiency", "Spectrum Utility"]
+    fig, axes = plt.subplots(2, 2, figsize=(9, 5), constrained_layout=True)
+    cmap = plt.get_cmap("Dark2", len(rewards))
+
+    length = int(rewards.shape[1])
+    x = np.linspace(0, episode, episode + 1)
+
+    for i, ax in enumerate(fig.axes):
+        ax.plot(x, rewards[:episode+1,i], linestyle="solid", color=cmap(i), alpha=0.8)
+        ax.set_xlim([0, episode])
+        ax.set_title(reward_labels[i], fontsize=16)
+        ax.set_xlabel("Episode", fontsize=12)
+
+    fig.savefig(save_path + f"Rewards.png", dpi=400)#, bbox_inches="tight")
+
+    plt.close(fig)
+
+    return 
+
 def plot_motion(episode, 
                 id, 
                 grid, 

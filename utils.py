@@ -7,6 +7,7 @@ Key utility functions for running simuations.
 import tensorflow as tf
 import numpy as np
 
+
 def update_users(grid, num_users, users, max_move=2):
     """ Based on tensorflow validity matrix, either generate random users or update existing"""
     y_max = grid.shape[0]
@@ -51,7 +52,7 @@ def update_users(grid, num_users, users, max_move=2):
 def get_throughput(rates):
     """ Calculate average link level throughput. """
 
-    return tf.reduce_sum(rates), tf.reduce_sum(rates, axis=[0,1]), tf.reduce_sum(rates, axis=2)
+    return tf.cast(tf.reduce_sum(rates), dtype=tf.float32), tf.cast(tf.reduce_sum(rates, axis=[0,1]), dtype=tf.float32), tf.cast(tf.reduce_sum(rates, axis=2), dtype=tf.float32)
 
 def get_power_efficiency(primary_bw, sharing_bw, sharing_state, primary_power, sharing_power, mu_pa):
     """ Calculate average power efficiency in W/Hz which is later abstracted to energy efficiency. """
@@ -59,7 +60,7 @@ def get_power_efficiency(primary_bw, sharing_bw, sharing_state, primary_power, s
     sharing_pe = (tf.cast(sharing_state, tf.float32) * (sharing_power / mu_pa)) / sharing_bw
     combined_pe = primary_pe + sharing_pe
 
-    return tf.reduce_sum(combined_pe), combined_pe
+    return tf.cast(tf.reduce_sum(combined_pe), dtype=tf.float32), tf.cast(combined_pe, dtype=tf.float32)
 
 def get_spectral_efficiency(primary_bw, sharing_bw, per_ap_per_band_throughput):
     """ Calculate average spectral efficiency. """
@@ -67,7 +68,7 @@ def get_spectral_efficiency(primary_bw, sharing_bw, per_ap_per_band_throughput):
     sharing_se = per_ap_per_band_throughput[2,:] / sharing_bw # single sharing band - easier calculation
     combined = tf.stack([primary_se, sharing_se])
 
-    return tf.reduce_mean(combined), combined
+    return tf.cast(tf.reduce_mean(combined), dtype=tf.float32), tf.cast(combined, dtype=tf.float32)
 
 def get_spectrum_utility(primary_bw, sharing_bw, sharing_state, total_throughput):
     """ Calculate how much of the spectrum is used. """
