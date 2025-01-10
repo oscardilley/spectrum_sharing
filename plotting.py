@@ -14,7 +14,8 @@ def plot_rewards(episode,
                  save_path="/home/ubuntu/spectrum_sharing/Simulations/"):
     """ Plot reward functions over time."""
     # Axis initialisation
-    reward_labels = ["Total Throughput", "Spectral Efficiency", "Power Efficiency", "Spectrum Utility"]
+    reward_labels = ["Total Throughput [MHz]", "Spectral Efficiency [bits/s/Hz]", "Power Efficiency [W/MHz]", "Spectrum Utility [bits/s/Hz]"]
+    reward_titles = ["Total Throughput", "Spectral Efficiency", "Power Efficiency", "Spectrum Utility"]
     fig, axes = plt.subplots(2, 2, figsize=(15, 10), constrained_layout=True)
     cmap = plt.get_cmap("Dark2", len(rewards))
 
@@ -26,8 +27,9 @@ def plot_rewards(episode,
     for i, ax in enumerate(fig.axes):
         ax.plot(x, rewards[:upper_x,i], linewidth=1.5, linestyle="solid", color=cmap(i), alpha=0.8)
         ax.set_xlim([0, lower_x])
-        ax.set_title(reward_labels[i], fontsize=16)
+        ax.set_title(reward_titles[i], fontsize=16)
         ax.set_xlabel("Episode", fontsize=12)
+        ax.set_ylabel(reward_labels[i], fontsize=12)
 
     fig.savefig(save_path + f"Rewards.png", dpi=400)#, bbox_inches="tight")
 
@@ -106,7 +108,10 @@ def plot_motion(episode,
     ax.set_ylabel("Y [Cells]", fontsize=16)
     ax.legend()
     
-    fig.savefig(save_path + f"Scene {id}.png")#, bbox_inches="tight")
+    if id == "Sharing Band, Max SINR":
+        fig.savefig(save_path + f"Scene {id} Ep{episode}.png")
+    else:
+        fig.savefig(save_path + f"Scene {id}.png")#, bbox_inches="tight")
 
     for i in range(len(users)):
         ax.plot([x_positions[i], x_positions[i] + dx[i]], [y_positions[i], y_positions[i] + dy[i]], color=cmap(i), linewidth=2.5)
@@ -145,6 +150,9 @@ def plot_performance(episode,
     for r in range(num_rows):
         for c in range(num_columns):
             ax1 = ax[r,c]
+            if ue >= num_ues:
+                ax1.axis("off")
+                continue
             x_pos = round(float(users[f"ue{ue}"]["position"][1]), 2)
             y_pos = round(float(users[f"ue{ue}"]["position"][0]), 2)
             ax1.set_title(f"UE {ue} at ({x_pos},{y_pos})", fontdict={'color': cmap(ue), 'weight': 'bold', 'fontsize': 16})

@@ -31,6 +31,8 @@ class SionnaEnv(gym.Env):
         self.sharing_bandwidth = self.cfg.primary_fft_size * self.cfg.primary_subcarrier_spacing
         self.primaryBands = {}
         self.initial_states = {}
+        self.norm_ranges= {"throughput": (0, 50), "se": (0, 10), "pe": (0, 20), "su": (0, 10)}
+
         for id, tx in enumerate(self.transmitters.values()):
             self.initial_states["PrimaryBand"+str(id)] = tf.cast(tf.one_hot(id, self.num_tx, dtype=tf.int16), dtype=tf.bool)
             self.primaryBands["PrimaryBand"+str(id)] = FullSimulator(prefix="primary",
@@ -81,16 +83,18 @@ class SionnaEnv(gym.Env):
         self.primary_figs = [None for _ in range(self.num_tx)]
         self.primary_axes = [None for _ in range(self.num_tx)]
         self.rewards = tf.zeros(shape=(self.cfg.episodes, 4), dtype=tf.float32)
+        self.norm_rewards = tf.zeros(shape=(self.cfg.episodes, 4), dtype=tf.float32)
         [primaryBand.reset() for primaryBand in self.primaryBands.values()]
         self.sharingBand.reset()
         grids = [primaryBand.grid for primaryBand in self.primaryBands.values()]
         self.valid_area = self.sharingBand.grid
         for i in range(len(grids)):
             self.valid_area = tf.math.logical_or(self.valid_area, grids[i]) # shape [y_max, x_max]
+        self.users = update_users(self.valid_area, self.cfg.num_rx, self.users) # getting initial user positions.
+        self.primary_sinr_maps = [primaryBand.sinr for primaryBand in self.primaryBands.values()]    
+        self.sharing_sinr_map = self.sharingBand.sinr
 
-        # NEED TO INITIALISE THE STATE
-
-        return self.sharing_state
+        return self._get_state()
 
     def step(self, action):
         """ Step through the environment. """
@@ -100,16 +104,14 @@ class SionnaEnv(gym.Env):
 
 
         # Generating the initial user positions based on logical OR of validity matrices
-        self.users = update_users(self.valid_area, self.cfg.num_rx, self.users)
+        if self.e > 0:
+            self.users = update_users(self.valid_area, self.cfg.num_rx, self.users)
 
         # Running the simulation - with separated primary bands
         primaryOutputs = [primaryBand(self.users, state, self.transmitters) for primaryBand, state in zip(self.primaryBands.values(), self.initial_states.values())]
-        # primaryOutput1 = self.primaryBand1(self.users, tf.convert_to_tensor([True, False], dtype=tf.bool), self.transmitters) 
-        # primaryOutput2 = self.primaryBand2(self.users, tf.convert_to_tensor([False, True], dtype=tf.bool), self.transmitters)
         sharingOutput = self.sharingBand(self.users, self.sharing_state, self.transmitters)
 
         # Combining the primary bands for the different transmitters:
-        # primaryOutput = {"bler": tf.stack([primaryOutput1["bler"][0,:], primaryOutput2["bler"][1,:]]), "sinr": tf.stack([primaryOutput1["sinr"][0,:], primaryOutput2["sinr"][1,:]])}
         primaryOutput = {"bler": tf.stack([primaryOutput["bler"][i,:] for primaryOutput, i in zip(primaryOutputs, range(len(self.initial_states.values())))]), 
                          "sinr": tf.stack([primaryOutput["sinr"][i,:] for primaryOutput, i in zip(primaryOutputs, range(len(self.initial_states.values())))])}
         self.performance.append({"Primary": primaryOutput, "Sharing": sharingOutput})
@@ -139,12 +141,17 @@ class SionnaEnv(gym.Env):
         
         # Plotting objectives/ rewards
         indices = tf.constant([[self.e, 0], [self.e, 1], [self.e, 2], [self.e, 3]])
-        updates = tf.stack([throughput, se, pe, su], axis=0)
+        updates = tf.stack([throughput, 
+                            se, 
+                            pe, 
+                            su], axis=0)
+        norm_updates = tf.stack([self._norm(throughput,self.norm_ranges["throughput"][0],self.norm_ranges["throughput"][1]), 
+                                 self._norm(se,self.norm_ranges["se"][0],self.norm_ranges["se"][1]), 
+                                 self._norm(pe,self.norm_ranges["pe"][0],self.norm_ranges["pe"][1]), 
+                                 self._norm(su,self.norm_ranges["su"][0],self.norm_ranges["su"][1])], axis=0)
         self.rewards = tf.tensor_scatter_nd_update(self.rewards, indices, tf.reshape(updates, (4,)))
-
-        # updates should influence the state
-
-        # integral of the rewards needs computing, relative to the time length of the episode
+        self.norm_rewards = tf.tensor_scatter_nd_update(self.norm_rewards, indices, tf.reshape(norm_updates, (4,)))
+        reward = tf.reduce_sum(self.norm_rewards)
 
         self.e += 1
 
@@ -163,8 +170,33 @@ class SionnaEnv(gym.Env):
 
         # returns the 5-tuple (observation, reward, terminated, truncated, info)
             # need to add logic to detect if final episode and return done or truncated if ended early e.g. due to a limit
-        return self.sharing_state, updates, False, False, {"rewards": self.rewards}
+        return self._get_state(), reward, False, False, {"rewards": self.rewards}
+        # return None, reward, False, False, {"rewards": self.rewards}
 
+    def _get_state(self):
+        """ Getting the data for the current state. """
+         # Adding normalised values to the state array
+        state = []
+        for user in self.users.values():
+            x = user["position"][1]  # x position
+            y = user["position"][0]  # y position
+
+            norm_x = self._norm(tf.cast(x, tf.float32), 0, self.valid_area.shape[1])
+            norm_y = self._norm(tf.cast(y, tf.float32), 0, self.valid_area.shape[0])
+
+            primary_sinrs = [self._norm(primary_sinr[[0]][y][x], -1e5, 1e5) for primary_sinr in self.primary_sinr_maps]
+            sharing_sinr = [self._norm(self.sharing_sinr_map[0][y][x], -1e5, 1e5)]
+
+
+            state.extend([norm_x, norm_y] + primary_sinrs + sharing_sinr)
+
+        return tf.convert_to_tensor(state, dtype=tf.float32)
+    
+    def _norm(self, value, min_val, max_val):
+        """Min Max Normalisation of value to range [0,1] given a range. """
+
+        return (value - min_val) / (max_val - min_val)
+    
     def render(self):
         """ Visualising the performance. """
         # Plotting the performance and motion
@@ -178,12 +210,10 @@ class SionnaEnv(gym.Env):
                              performance=self.performance, 
                              save_path=self.cfg.images_path)
             
-        primary_sinr_maps = [primaryBand.sinr for primaryBand in self.primaryBands.values()]    
-        sharing_sinr_map = self.sharingBand.sinr
         self.fig_0, self.ax_0  = plot_motion(episode=self.e, 
                                   id="Sharing Band, Max SINR", 
                                   grid=self.valid_area, 
-                                  cm=tf.reduce_max(sharing_sinr_map, axis=0), 
+                                  cm=tf.reduce_max(self.sharing_sinr_map, axis=0), 
                                   color="viridis",
                                   users=self.users, 
                                   transmitters=self.transmitters, 
@@ -192,7 +222,7 @@ class SionnaEnv(gym.Env):
                                   ax=self.ax_0, 
                                   save_path=self.cfg.images_path)
         
-        for id, primary_sinr_map in enumerate(primary_sinr_maps):
+        for id, primary_sinr_map in enumerate(self.primary_sinr_maps):
             self.primary_figs[id], self.primary_axes[id] = plot_motion(episode=self.e, 
                                                                        id=f"Primary Band {id}, SINR", 
                                                                        grid=self.valid_area, 

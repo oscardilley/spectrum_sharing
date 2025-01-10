@@ -50,22 +50,21 @@ def update_users(grid, num_users, users, max_move=2):
 
 def get_throughput(rates):
     """ Calculate average link level throughput. """
-
+    rates = rates / 1e6 # convert to MHz
     return tf.cast(tf.reduce_sum(rates), dtype=tf.float32), tf.cast(tf.reduce_sum(rates, axis=[0,1]), dtype=tf.float32), tf.cast(tf.reduce_sum(rates, axis=2), dtype=tf.float32)
 
 def get_power_efficiency(primary_bw, sharing_bw, sharing_state, primary_power, sharing_power, mu_pa):
-    """ Calculate average power efficiency in W/Hz which is later abstracted to energy efficiency. """
+    """ Calculate average power efficiency in W/MHz which is later abstracted to energy efficiency. """
     primary_pe = (primary_power / mu_pa) / primary_bw
     sharing_pe = (tf.cast(sharing_state, tf.float32) * (sharing_power / mu_pa)) / sharing_bw
-    combined_pe = primary_pe + sharing_pe
+    combined_pe = (primary_pe + sharing_pe) * 1e6
 
     return tf.cast(tf.reduce_sum(combined_pe), dtype=tf.float32), tf.cast(combined_pe, dtype=tf.float32)
 
 def get_spectral_efficiency(primary_bw, sharing_bw, per_ap_per_band_throughput):
     """ Calculate average spectral efficiency. """
-    print(per_ap_per_band_throughput.shape)
+    per_ap_per_band_throughput = per_ap_per_band_throughput * 1e6 # convert back to Hz from MHz
     primary_se = tf.reduce_sum(tf.stack([per_ap_per_band_throughput[bs,:] / primary_bw for bs in range(int(per_ap_per_band_throughput.shape[1]))]), axis=0) # for separated primary bands
-    print(primary_se.shape)
     sharing_se = per_ap_per_band_throughput[-1,:] / sharing_bw # single sharing band - easier calculation
     combined = tf.stack([primary_se, sharing_se])
 
@@ -77,4 +76,4 @@ def get_spectrum_utility(primary_bw, sharing_bw, sharing_state, total_throughput
     total_primary_spectrum = tf.reduce_sum(num_bs * primary_bw)
     total_sharing_spectrum = tf.reduce_sum(tf.cast(sharing_state, tf.float32) * sharing_bw)
 
-    return  tf.cast(total_throughput, dtype=tf.float32) /(total_primary_spectrum + total_sharing_spectrum)
+    return  tf.cast(total_throughput * 1e6, dtype=tf.float32) /(total_primary_spectrum + total_sharing_spectrum)

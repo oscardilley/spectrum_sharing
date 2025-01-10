@@ -19,6 +19,18 @@ max_results_length: 10
 transmitters:
     tx0:
         name: "tx0"
+        position: [-16, 23, 25] # transmitter and receiver structure needs to be the same - may need to include Doppler
+        direction: [0, 0, 0]
+        orientation: [0, 0, 0]
+        color: [1, 0, 0]
+        primary_power: 17.0
+        sharing_power: 17.0
+        look_at: [-30, 23, 10]
+        mu_pa: 0.4
+        primary_carrier_freq: 4145e6
+
+    tx1:
+        name: "tx1"
         position: [32, 10, 21]
         direction: [0, 0, 0]
         orientation: [0, 0, 0]
@@ -29,17 +41,6 @@ transmitters:
         mu_pa: 0.5
         primary_carrier_freq: 3425e6
 
-    tx1:
-        name: "tx1"
-        position: [-16, 23, 25] # transmitter and receiver structure needs to be the same - may need to include Doppler
-        direction: [0, 0, 0]
-        orientation: [0, 0, 0]
-        color: [1, 0, 0]
-        primary_power: 17.0
-        sharing_power: 17.0
-        look_at: [-30, 23, 10]
-        mu_pa: 0.4
-        primary_carrier_freq: 4145e6
 
     # tx2:
     #     name: "tx2"

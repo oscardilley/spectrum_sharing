@@ -19,8 +19,9 @@ def main(cfg):
     """Run the simulator."""
     # Starting simulator
     env = SionnaEnv(cfg)
-    action = env.reset(seed=cfg.random_seed)
-    print("Initial state: ", action)
+    initial_state = env.reset(seed=cfg.random_seed)
+    action = tf.convert_to_tensor([True for _ in range(len(cfg.transmitters))], dtype=tf.bool)
+    print("Initial transmitter state: ", action)
     for e in range(cfg.episodes):
         print("Starting Episode: ", e)
         start = perf_counter()
@@ -58,8 +59,8 @@ if __name__ == "__main__":
         #print(OmegaConf.to_yaml(config))
         sionna.config.xla_compat=True
         sionna.config.seed=config.random_seed
-        tf.random.set_seed(config.random_seed)
-        os.environ['TF_DETERMINISTIC_OPS'] = '1'
-        os.environ['TF_CUDNN_DETERMINISTIC'] = '1'
+        #tf.random.set_seed(config.random_seed)
+        # os.environ['TF_DETERMINISTIC_OPS'] = '1'
+        # os.environ['TF_CUDNN_DETERMINISTIC'] = '1'
 
     main(config)
