@@ -28,11 +28,10 @@ def plot_rewards(episode,
         ax.set_xlim([0, lower_x])
         ax.set_title(reward_labels[i], fontsize=16)
         ax.set_xlabel("Episode", fontsize=12)
-        print(episode)
 
     fig.savefig(save_path + f"Rewards.png", dpi=400)#, bbox_inches="tight")
 
-    plt.close(fig)
+    plt.close()
 
     return 
 
@@ -110,15 +109,14 @@ def plot_motion(episode,
 
     for i in range(len(users)):
         ax.plot([x_positions[i], x_positions[i] + dx[i]], [y_positions[i], y_positions[i] + dy[i]], color=cmap(i), linewidth=2.5)
-    
+
+
     return fig, ax
 
 
 def plot_performance(episode,
                      users, 
                      performance,
-                     fig=None, 
-                     ax=None, 
                      save_path="/home/ubuntu/spectrum_sharing/Simulations/"):
     """ Plotting the BLER and SNR for the users. """
     length = len(performance)
@@ -171,5 +169,6 @@ def plot_performance(episode,
                ("Primary BLER TX0", "Primary BLER TX1", "Primary SINR TX0", "Primary SINR TX1", "Secondary BLER TX0", "Secondary BLER TX1", "Secondary SINR TX0", "Secondary SINR TX1"),
                loc="outside right center")
     fig.savefig(save_path + f"UE_performance.png", dpi=400)
+    plt.close()
 
     return

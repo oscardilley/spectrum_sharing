@@ -10,32 +10,16 @@ import sionna
 from time import perf_counter
 from hydra import compose, initialize 
 import numpy as np
-# import gymnasium as gym
+import os
+import matplotlib.pyplot as plt
 
-# from plotting import plot_motion, plot_performance, plot_rewards
-# from utils import update_users, get_throughput, get_spectral_efficiency, get_power_efficiency, get_spectrum_utility
-# from scenario_simulator import FullSimulator
 from RL_simulator import SionnaEnv
 
 def main(cfg):
     """Run the simulator."""
-    # Initalisation
-    # e = 0
-    # users={}
-    # performance=[]
-    # rewards = tf.zeros(shape=(cfg.episodes, 4), dtype=tf.float32)
-    # fig_0, fig_1, fig_2 = None, None, None
-    # ax_0, ax_1, ax_2 = None, None, None
-    # transmitters = dict(cfg.transmitters)
-    # num_tx = len(transmitters)
-    # sharing_state = tf.ones(shape=(num_tx), dtype=tf.bool)
-    # max_results_length = cfg.max_results_length
-    # primary_bandwidth = cfg.primary_fft_size * cfg.primary_subcarrier_spacing
-    # sharing_bandwidth = cfg.primary_fft_size * cfg.primary_subcarrier_spacing
-
     # Starting simulator
     env = SionnaEnv(cfg)
-    state = env.reset()
+    state = env.reset(seed=cfg.random_seed)
     print("Initial state: ", state)
     for e in range(cfg.episodes):
         print("Starting Episode: ", e)
@@ -47,6 +31,15 @@ def main(cfg):
                 # in the future, shortcut this and go straight to rewards without calculation
                 continue
             else:
+                # Used to ensure number of matplotlib figures is managed
+                # print(plt.get_fignums())
+                # for fig_num in plt.get_fignums():
+                #     print(f"FIGURE {fig_num}")
+                #     fig = plt.figure(fig_num)  # Access the figure by its number
+                #     title = fig._suptitle.get_text() if fig._suptitle else "No Title"
+                #     for ax in plt.figure(fig_num).axes:
+                #         print(ax.get_title())
+                #     print(title)
                 break
         
         print("Action: ", action)
@@ -59,12 +52,14 @@ def main(cfg):
     return
 
 if __name__ == "__main__":
-    # Configuration
-    random_seed = 40
-    sionna.config.xla_compat=True
-    sionna.config.seed=random_seed
 
     with initialize(version_base=None, config_path="conf", job_name="simulation"):
         config = compose(config_name="simulation")
         #print(OmegaConf.to_yaml(config))
+        sionna.config.xla_compat=True
+        sionna.config.seed=config.random_seed
+        tf.random.set_seed(config.random_seed)
+        os.environ['TF_DETERMINISTIC_OPS'] = '1'
+        os.environ['TF_CUDNN_DETERMINISTIC'] = '1'
+
     main(config)

@@ -71,9 +71,16 @@ class SionnaEnv(gym.Env):
                                     fft_size = self.cfg.sharing_fft_size,
                                     batch_size=self.cfg.batch_size,
                                     )
+        # Set up gym standard attributes
+        # action space - all valid actions - defined based on the number of transmitters
+        # observation space - all valid observations
+
+
+
         
     def reset(self, seed=None, options=None):
         """ Reset the environment to its initial state. """
+        super().reset(seed=seed)
         self.e = 0
         self.users={}
         self.performance=[]
@@ -173,7 +180,7 @@ class SionnaEnv(gym.Env):
         primary_sinr_map_1 = self.primaryBand1.sinr
         primary_sinr_map_2 = self.primaryBand2.sinr
         sharing_sinr_map = self.sharingBand.sinr
-        fig_0, ax_0 = plot_motion(episode=self.e, 
+        self.fig_0, self.ax_0 = plot_motion(episode=self.e, 
                                   id="Primary Band 1, SINR", 
                                   grid=self.valid_area, 
                                   cm=tf.reduce_max(primary_sinr_map_1, axis=0), 
@@ -184,7 +191,7 @@ class SionnaEnv(gym.Env):
                                   fig=self.fig_0,
                                   ax=self.ax_0, 
                                   save_path=self.cfg.images_path)
-        fig_1, ax_1 = plot_motion(episode=self.e, 
+        self.fig_1, self.ax_1 = plot_motion(episode=self.e, 
                                   id="Primary Band 2, SINR", 
                                   grid=self.valid_area, 
                                   cm=tf.reduce_max(primary_sinr_map_2, axis=0), 
@@ -195,7 +202,7 @@ class SionnaEnv(gym.Env):
                                   fig=self.fig_1,
                                   ax=self.ax_1, 
                                   save_path=self.cfg.images_path)
-        fig_2, ax_2  = plot_motion(episode=self.e, 
+        self.fig_2, self.ax_2  = plot_motion(episode=self.e, 
                                   id="Sharing Band, Max SINR", 
                                   grid=self.valid_area, 
                                   cm=tf.reduce_max(sharing_sinr_map, axis=0), 

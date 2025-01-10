@@ -1,5 +1,6 @@
 # Basic configuration parameters:
 episodes: 20
+random_seed: 42
 num_rx: 20
 max_depth: 3
 primary_carrier_freq_1: 3425e6
@@ -39,3 +40,14 @@ transmitters:
         sharing_power: 17.0
         look_at: [-30, 23, 10]
         mu_pa: 0.4
+
+    # tx2:
+    #     name: "tx2"
+    #     position: [16, 23, 25] # transmitter and receiver structure needs to be the same - may need to include Doppler
+    #     direction: [0, 0, 0]
+    #     orientation: [0, 0, 0]
+    #     color: [1, 0, 0]
+    #     primary_power: 17.0
+    #     sharing_power: 17.0
+    #     look_at: [-30, 23, 10]
+    #     mu_pa: 0.4
