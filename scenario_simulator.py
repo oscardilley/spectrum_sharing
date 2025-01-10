@@ -160,10 +160,10 @@ class FullSimulator:
 
         paths = self.scene.compute_paths(max_depth=self.max_depth, diffraction=True)
         paths.normalize_delays = False
-        
+
         paths.apply_doppler(sampling_frequency=self.subcarrier_spacing,
                             num_time_steps=self.num_time_steps, # Number of OFDM symbols
-                            tx_velocities=[self.cell_size * tf.convert_to_tensor(transmitter["direction"], dtype=tf.int64) for transmitter in self.transmitters.values()], # [batch_size, num_tx, 3] shape
+                            #tx_velocities=[self.cell_size * tf.convert_to_tensor(transmitter["direction"], dtype=tf.int64) for transmitter in self.transmitters.values()], # [batch_size, num_tx, 3] shape
                             rx_velocities=[self.cell_size * receiver["direction"] for receiver in receivers.values()]) # [batch_size, num_rx, 3] shape
        
         a, tau = paths.cir(los=True)

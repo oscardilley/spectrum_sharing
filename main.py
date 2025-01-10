@@ -19,13 +19,14 @@ def main(cfg):
     """Run the simulator."""
     # Starting simulator
     env = SionnaEnv(cfg)
-    state = env.reset(seed=cfg.random_seed)
-    print("Initial state: ", state)
+    action = env.reset(seed=cfg.random_seed)
+    print("Initial state: ", action)
     for e in range(cfg.episodes):
         print("Starting Episode: ", e)
         start = perf_counter()
+        state, reward, done, _, _ = env.step(action)
         while(True):
-            random = tf.random.uniform(shape=(2,), minval=0, maxval=1)
+            random = tf.random.uniform(shape=(len(cfg.transmitters),), minval=0, maxval=1)
             action = random >= 0.5    
             if np.all(action.numpy() == False):
                 # in the future, shortcut this and go straight to rewards without calculation
@@ -42,8 +43,7 @@ def main(cfg):
                 #     print(title)
                 break
         
-        print("Action: ", action)
-        state, reward, done, _, _ = env.step(action)
+        print("Next Action: ", action)
         env.render()
         end = perf_counter()
         print(f"\t{round(end-start, 5)}s elapsed.")

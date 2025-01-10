@@ -63,6 +63,7 @@ def plot_motion(episode,
 
     # Axis initialisation
     if ax is None or fig is None:
+        
         fig, ax = plt.subplots(figsize=(int(x_max/4), int(y_max/4)), constrained_layout=True)
     
         # Add gridlines

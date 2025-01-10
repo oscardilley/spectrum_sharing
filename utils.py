@@ -5,7 +5,6 @@ Key utility functions for running simuations.
 """
 
 import tensorflow as tf
-import numpy as np
 
 
 def update_users(grid, num_users, users, max_move=2):
@@ -64,8 +63,10 @@ def get_power_efficiency(primary_bw, sharing_bw, sharing_state, primary_power, s
 
 def get_spectral_efficiency(primary_bw, sharing_bw, per_ap_per_band_throughput):
     """ Calculate average spectral efficiency. """
-    primary_se = tf.reduce_sum(tf.stack([per_ap_per_band_throughput[bs,:] / primary_bw for bs in range(int(per_ap_per_band_throughput.shape[1]))]) ,axis=0) # for separated primary bands
-    sharing_se = per_ap_per_band_throughput[2,:] / sharing_bw # single sharing band - easier calculation
+    print(per_ap_per_band_throughput.shape)
+    primary_se = tf.reduce_sum(tf.stack([per_ap_per_band_throughput[bs,:] / primary_bw for bs in range(int(per_ap_per_band_throughput.shape[1]))]), axis=0) # for separated primary bands
+    print(primary_se.shape)
+    sharing_se = per_ap_per_band_throughput[-1,:] / sharing_bw # single sharing band - easier calculation
     combined = tf.stack([primary_se, sharing_se])
 
     return tf.cast(tf.reduce_mean(combined), dtype=tf.float32), tf.cast(combined, dtype=tf.float32)

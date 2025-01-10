@@ -24,38 +24,30 @@ class SionnaEnv(gym.Env):
         self.cfg = cfg
         self.transmitters = dict(self.cfg.transmitters)
         self.num_tx = len(self.transmitters)
+        print("Num Transmitters: ", self.num_tx)
         self.sharing_state = tf.ones(shape=(self.num_tx), dtype=tf.bool)
         self.max_results_length = self.cfg.max_results_length
         self.primary_bandwidth = self.cfg.primary_fft_size * self.cfg.primary_subcarrier_spacing
         self.sharing_bandwidth = self.cfg.primary_fft_size * self.cfg.primary_subcarrier_spacing
-        self.primaryBand1 = FullSimulator(prefix="primary",
-                                         scene_name=sionna.rt.scene.simple_street_canyon,
-                                         carrier_frequency=self.cfg.primary_carrier_freq_1,
-                                         bandwidth=self.primary_bandwidth,
-                                         pmax=50, # maximum power
-                                         transmitters=self.transmitters,
-                                         num_rx = self.cfg.num_rx,
-                                         max_depth=self.cfg.max_depth,
-                                         cell_size=self.cfg.cell_size,
-                                         initial_state = tf.convert_to_tensor([True, False], dtype=tf.bool),
-                                         subcarrier_spacing = self.cfg.primary_subcarrier_spacing,
-                                         fft_size = self.cfg.primary_fft_size,
-                                         batch_size=self.cfg.batch_size,
-                                         )
-        self.primaryBand2 = FullSimulator(prefix="primary",
-                                        scene_name=sionna.rt.scene.simple_street_canyon,
-                                        carrier_frequency=self.cfg.primary_carrier_freq_2,
-                                        bandwidth=self.primary_bandwidth,
-                                        pmax=50, # maximum power
-                                        transmitters=self.transmitters,
-                                        num_rx = self.cfg.num_rx,
-                                        max_depth=self.cfg.max_depth,
-                                        cell_size=self.cfg.cell_size,
-                                        initial_state = tf.convert_to_tensor([False, True], dtype=tf.bool),
-                                        subcarrier_spacing = self.cfg.primary_subcarrier_spacing,
-                                        fft_size = self.cfg.primary_fft_size,
-                                        batch_size=self.cfg.batch_size,
-                                        )
+        self.primaryBands = {}
+        self.initial_states = {}
+        for id, tx in enumerate(self.transmitters.values()):
+            self.initial_states["PrimaryBand"+str(id)] = tf.cast(tf.one_hot(id, self.num_tx, dtype=tf.int16), dtype=tf.bool)
+            self.primaryBands["PrimaryBand"+str(id)] = FullSimulator(prefix="primary",
+                                                                     scene_name=sionna.rt.scene.simple_street_canyon,
+                                                                     carrier_frequency=tx["primary_carrier_freq"],
+                                                                     bandwidth=self.primary_bandwidth,
+                                                                     pmax=50, # maximum power
+                                                                     transmitters=self.transmitters,
+                                                                     num_rx = self.cfg.num_rx,
+                                                                     max_depth=self.cfg.max_depth,
+                                                                     cell_size=self.cfg.cell_size,
+                                                                     initial_state = self.initial_states["PrimaryBand"+str(id)],
+                                                                     subcarrier_spacing = self.cfg.primary_subcarrier_spacing,
+                                                                     fft_size = self.cfg.primary_fft_size,
+                                                                     batch_size=self.cfg.batch_size,
+                                                                     )
+            
         # Setting up the sharing band
         self.sharingBand = FullSimulator(prefix="sharing",
                                     scene_name=sionna.rt.scene.simple_street_canyon,
@@ -84,13 +76,19 @@ class SionnaEnv(gym.Env):
         self.e = 0
         self.users={}
         self.performance=[]
-        self.fig_0, self.fig_1, self.fig_2 = None, None, None
-        self.ax_0, self.ax_1, self.ax_2 = None, None, None
+        self.fig_0 = None
+        self.ax_0 = None
+        self.primary_figs = [None for _ in range(self.num_tx)]
+        self.primary_axes = [None for _ in range(self.num_tx)]
         self.rewards = tf.zeros(shape=(self.cfg.episodes, 4), dtype=tf.float32)
-        self.primaryBand1.reset()
-        self.primaryBand2.reset()
+        [primaryBand.reset() for primaryBand in self.primaryBands.values()]
         self.sharingBand.reset()
-        self.valid_area = tf.math.logical_or(tf.math.logical_or(self.primaryBand1.grid, self.primaryBand2.grid), self.sharingBand.grid) # shape [y_max, x_max]
+        grids = [primaryBand.grid for primaryBand in self.primaryBands.values()]
+        self.valid_area = self.sharingBand.grid
+        for i in range(len(grids)):
+            self.valid_area = tf.math.logical_or(self.valid_area, grids[i]) # shape [y_max, x_max]
+
+        # NEED TO INITIALISE THE STATE
 
         return self.sharing_state
 
@@ -105,16 +103,19 @@ class SionnaEnv(gym.Env):
         self.users = update_users(self.valid_area, self.cfg.num_rx, self.users)
 
         # Running the simulation - with separated primary bands
-        primaryOutput1 = self.primaryBand1(self.users, tf.convert_to_tensor([True, False], dtype=tf.bool), self.transmitters) 
-        primaryOutput2 = self.primaryBand2(self.users, tf.convert_to_tensor([False, True], dtype=tf.bool), self.transmitters)
+        primaryOutputs = [primaryBand(self.users, state, self.transmitters) for primaryBand, state in zip(self.primaryBands.values(), self.initial_states.values())]
+        # primaryOutput1 = self.primaryBand1(self.users, tf.convert_to_tensor([True, False], dtype=tf.bool), self.transmitters) 
+        # primaryOutput2 = self.primaryBand2(self.users, tf.convert_to_tensor([False, True], dtype=tf.bool), self.transmitters)
         sharingOutput = self.sharingBand(self.users, self.sharing_state, self.transmitters)
 
         # Combining the primary bands for the different transmitters:
-        primaryOutput = {"bler": tf.stack([primaryOutput1["bler"][0,:], primaryOutput2["bler"][1,:]]), "sinr": tf.stack([primaryOutput1["sinr"][0,:], primaryOutput2["sinr"][1,:]])}
+        # primaryOutput = {"bler": tf.stack([primaryOutput1["bler"][0,:], primaryOutput2["bler"][1,:]]), "sinr": tf.stack([primaryOutput1["sinr"][0,:], primaryOutput2["sinr"][1,:]])}
+        primaryOutput = {"bler": tf.stack([primaryOutput["bler"][i,:] for primaryOutput, i in zip(primaryOutputs, range(len(self.initial_states.values())))]), 
+                         "sinr": tf.stack([primaryOutput["sinr"][i,:] for primaryOutput, i in zip(primaryOutputs, range(len(self.initial_states.values())))])}
         self.performance.append({"Primary": primaryOutput, "Sharing": sharingOutput})
 
         # Calculating rewards
-        rates = tf.stack([primaryOutput1["rate"], primaryOutput2["rate"], sharingOutput["rate"]])
+        rates = tf.stack([primaryOutput["rate"] for primaryOutput in primaryOutputs] + sharingOutput["rate"])
         throughput, per_ue_throughput, per_ap_per_band_throughput = get_throughput(rates)
 
         primary_power = tf.convert_to_tensor(np.power(10, (np.array([tx["primary_power"] for tx in self.transmitters.values()]) - 30) / 10), dtype=tf.float32)
@@ -177,32 +178,9 @@ class SionnaEnv(gym.Env):
                              performance=self.performance, 
                              save_path=self.cfg.images_path)
             
-        primary_sinr_map_1 = self.primaryBand1.sinr
-        primary_sinr_map_2 = self.primaryBand2.sinr
+        primary_sinr_maps = [primaryBand.sinr for primaryBand in self.primaryBands.values()]    
         sharing_sinr_map = self.sharingBand.sinr
-        self.fig_0, self.ax_0 = plot_motion(episode=self.e, 
-                                  id="Primary Band 1, SINR", 
-                                  grid=self.valid_area, 
-                                  cm=tf.reduce_max(primary_sinr_map_1, axis=0), 
-                                  color="inferno",
-                                  users=self.users, 
-                                  transmitters=self.transmitters, 
-                                  cell_size=self.cfg.cell_size, 
-                                  fig=self.fig_0,
-                                  ax=self.ax_0, 
-                                  save_path=self.cfg.images_path)
-        self.fig_1, self.ax_1 = plot_motion(episode=self.e, 
-                                  id="Primary Band 2, SINR", 
-                                  grid=self.valid_area, 
-                                  cm=tf.reduce_max(primary_sinr_map_2, axis=0), 
-                                  color="inferno",
-                                  users=self.users, 
-                                  transmitters=self.transmitters, 
-                                  cell_size=self.cfg.cell_size, 
-                                  fig=self.fig_1,
-                                  ax=self.ax_1, 
-                                  save_path=self.cfg.images_path)
-        self.fig_2, self.ax_2  = plot_motion(episode=self.e, 
+        self.fig_0, self.ax_0  = plot_motion(episode=self.e, 
                                   id="Sharing Band, Max SINR", 
                                   grid=self.valid_area, 
                                   cm=tf.reduce_max(sharing_sinr_map, axis=0), 
@@ -210,9 +188,22 @@ class SionnaEnv(gym.Env):
                                   users=self.users, 
                                   transmitters=self.transmitters, 
                                   cell_size=self.cfg.cell_size, 
-                                  fig=self.fig_2,
-                                  ax=self.ax_2, 
+                                  fig=self.fig_0,
+                                  ax=self.ax_0, 
                                   save_path=self.cfg.images_path)
+        
+        for id, primary_sinr_map in enumerate(primary_sinr_maps):
+            self.primary_figs[id], self.primary_axes[id] = plot_motion(episode=self.e, 
+                                                                       id=f"Primary Band {id}, SINR", 
+                                                                       grid=self.valid_area, 
+                                                                       cm=tf.reduce_max(primary_sinr_map, axis=0), 
+                                                                       color="inferno",
+                                                                       users=self.users, 
+                                                                       transmitters=self.transmitters, 
+                                                                       cell_size=self.cfg.cell_size, 
+                                                                       fig=self.primary_figs[id],
+                                                                       ax=self.primary_axes[id], 
+                                                                       save_path=self.cfg.images_path)
         
         plot_rewards(episode=self.e,
                      rewards=self.rewards,
