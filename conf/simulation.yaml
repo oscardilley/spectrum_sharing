@@ -1,7 +1,14 @@
-# Basic configuration parameters:
-episodes: 20
+# Simulation
+episodes: 100
 episode_limit: 300
 random_seed: 42
+
+# General
+max_results_length: 10 # for plotting
+images_path: "/home/ubuntu/spectrum_sharing/Simulations/"
+log_path: "/home/ubuntu/spectrum_sharing/Logging/"
+
+# Scene and Sionna
 num_rx: 20
 max_depth: 3
 sharing_carrier_freq: 7425e6
@@ -12,9 +19,16 @@ sharing_fft_size: 324
 batch_size: 1000 # also corresponds to time between episodes when subcarrier_spacing is considered
 ebno_db: 2.0
 cell_size: 3
-images_path: "/home/ubuntu/spectrum_sharing/Simulations/"
-log_path: "/home/ubuntu/spectrum_sharing/Logging/"
-max_results_length: 10
+
+# Model and training
+training_batch_size: 20 # in timesteps
+target_network_update_freq: 5 # in episodes
+buffer_max_size: 100000
+gamma: 0.99
+epsilon_start: 1.0
+epsilon_min: 0.1
+epsilon_decay: 0.995
+learning_rate: 0.001
 
 # Transmitters
 transmitters:

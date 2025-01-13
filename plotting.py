@@ -9,7 +9,7 @@ import matplotlib as mpl
 import tensorflow as tf
 import numpy as np
 
-def plot_rewards(episode,
+def plot_rewards(step,
                  rewards,
                  save_path="/home/ubuntu/spectrum_sharing/Simulations/"):
     """ Plot reward functions over time."""
@@ -20,15 +20,15 @@ def plot_rewards(episode,
     cmap = plt.get_cmap("Dark2", len(rewards))
 
     # length = int(rewards.shape[1])
-    upper_x = episode + 1
-    lower_x = episode - 1
-    x = np.linspace(0, episode, upper_x)
+    upper_x = step + 1
+    lower_x = step - 1
+    x = np.linspace(0, step, upper_x)
 
     for i, ax in enumerate(fig.axes):
         ax.plot(x, rewards[:upper_x,i], linewidth=1.5, linestyle="solid", color=cmap(i), alpha=0.8)
         ax.set_xlim([0, lower_x])
         ax.set_title(reward_titles[i], fontsize=16)
-        ax.set_xlabel("Episode", fontsize=12)
+        ax.set_xlabel("Step", fontsize=12)
         ax.set_ylabel(reward_labels[i], fontsize=12)
 
     fig.savefig(save_path + f"Rewards.png", dpi=400)#, bbox_inches="tight")
@@ -37,7 +37,7 @@ def plot_rewards(episode,
 
     return 
 
-def plot_motion(episode, 
+def plot_motion(step, 
                 id, 
                 grid, 
                 cm,
@@ -83,13 +83,13 @@ def plot_motion(episode,
     else:
         [arrow.remove() for arrow in ax.findobj(match=mpl.quiver.Quiver)]
         [img.remove() for img in ax.images]
-        if episode > 5:
+        if step > 5:
             [line.remove() for line in ax.lines[:min(10,len(ax.lines))]]
 
     # Plotting the coverage map
     cm_db = 10 * tf.math.log(cm) / tf.math.log(10.0)
     map = ax.imshow(cm_db, cmap=color, origin='lower', alpha=0.7, extent=[0, x_max, 0, y_max], vmin=-100, vmax=100)
-    if episode == 0:
+    if step == 0:
         cbar = fig.colorbar(map, ax=ax, shrink=0.8)
         cbar.set_label("SINR [dB]", fontsize=16) 
     grid = grid.numpy()
@@ -103,13 +103,13 @@ def plot_motion(episode,
     )
 
     # Labels and title
-    ax.set_title(f"\n{id} Episode {episode}\n", fontsize=25)
+    ax.set_title(f"\n{id} Step {step}\n", fontsize=25)
     ax.set_xlabel("X [Cells]", fontsize=16)
     ax.set_ylabel("Y [Cells]", fontsize=16)
     ax.legend()
     
     if id == "Sharing Band, Max SINR":
-        fig.savefig(save_path + f"Scene {id} Ep{episode}.png")
+        fig.savefig(save_path + f"Scene {id} Ep{step}.png")
     else:
         fig.savefig(save_path + f"Scene {id}.png")#, bbox_inches="tight")
 
@@ -120,13 +120,13 @@ def plot_motion(episode,
     return fig, ax
 
 
-def plot_performance(episode,
+def plot_performance(step,
                      users, 
                      performance,
                      save_path="/home/ubuntu/spectrum_sharing/Simulations/"):
     """ Plotting the BLER and SNR for the users. """
     length = len(performance)
-    x = np.linspace(episode + 1 - length, episode, length)
+    x = np.linspace(step + 1 - length, step, length)
 
     # Extracting data
     primary_bler = tf.stack([results["Primary"]["bler"] for results in performance])
@@ -143,7 +143,7 @@ def plot_performance(episode,
     else: 
         num_rows = num_columns
     fig, ax = plt.subplots(num_rows, num_columns, figsize=(4.5*num_columns, 3*num_rows), constrained_layout=True)
-    fig.suptitle(f"Episode {episode} UE Performance", fontsize=25, fontdict={'color': "black", 'fontweight': 'bold'})
+    fig.suptitle(f"Timestep {step} UE Performance", fontsize=25, fontdict={'color': "black", 'fontweight': 'bold'})
 
     # Plotting per user
     ue = 0
@@ -156,7 +156,7 @@ def plot_performance(episode,
             x_pos = round(float(users[f"ue{ue}"]["position"][1]), 2)
             y_pos = round(float(users[f"ue{ue}"]["position"][0]), 2)
             ax1.set_title(f"UE {ue} at ({x_pos},{y_pos})", fontdict={'color': cmap(ue), 'weight': 'bold', 'fontsize': 16})
-            ax1.set_xlabel("Episode")
+            ax1.set_xlabel("Step")
             ax1.set_ylabel("BLER")
             ax1.set_ylim([-0.05, 1.05])
             ax1.set_xlim([x[0], x[-1]])

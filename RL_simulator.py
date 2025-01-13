@@ -38,7 +38,11 @@ class SionnaEnv(gym.Env):
         transmitter_states = spaces.MultiBinary(len(self.transmitters)) # each transmitter has power and state (ON/OFF)
         transmitter_powers = spaces.Box(low=1, high=50, shape=(len(self.transmitters),), dtype=np.int16) # power in dBm  
         self.action_space = spaces.Tuple((transmitter_states, transmitter_powers), seed=self.cfg.random_seed)     
-        self.observation_space = None
+        self.observation_space = spaces.Box(low=0,
+                                            high=1,
+                                            shape=(int(self.cfg.num_rx * (2 + self.num_tx + 1)),), # num_rx * (2 coords + num_tx primary + 1 sharing SINR)
+                                            dtype=np.float32
+                                        )
         
         # Initialising the transmitters, ensuring atleast one transmitter is active
         initial_action = self.action_space.sample()
@@ -85,7 +89,7 @@ class SionnaEnv(gym.Env):
         super().reset(seed=seed)
 
         # Initialising data structures
-        self.e = 0
+        self.timestep = 0
         self.users={}
         self.performance=[]
         self.fig_0 = None
@@ -123,7 +127,7 @@ class SionnaEnv(gym.Env):
             tx["sharing_power"] = int(self.power[id])
 
         # Generating the initial user positions based on logical OR of validity matrices
-        if self.e > 0:
+        if self.timestep > 0:
             self.users = update_users(self.valid_area, self.cfg.num_rx, self.users)
 
         # Running the simulation - with separated primary bands
@@ -163,7 +167,7 @@ class SionnaEnv(gym.Env):
                                   throughput)
         
         # Plotting objectives/ rewards
-        indices = tf.constant([[self.e, 0], [self.e, 1], [self.e, 2], [self.e, 3]])
+        indices = tf.constant([[self.timestep, 0], [self.timestep, 1], [self.timestep, 2], [self.timestep, 3]])
         updates = tf.stack([throughput, 
                             se, 
                             pe, 
@@ -176,11 +180,11 @@ class SionnaEnv(gym.Env):
         self.norm_rewards = tf.tensor_scatter_nd_update(self.norm_rewards, indices, tf.reshape(norm_updates, (4,)))
         reward = tf.reduce_sum(self.norm_rewards)
 
+        self.timestep += 1
         # Infinite-horizon problem so we terminate at an arbitraty point - the agent does not know about this limit
-        if self.e >= self.limit:
+        if self.timestep == self.limit - 1:
+            print("Episode limit reached.")
             self.truncated = True
-
-        self.e += 1
         # returns the 5-tuple (observation, reward, terminated, truncated, info)
         return self._get_obs(), reward, self.terminated, self.truncated, {"rewards": self.rewards}
 
@@ -199,6 +203,8 @@ class SionnaEnv(gym.Env):
             primary_sinrs = [self._norm(primary_sinr[[0]][y][x], -1e5, 1e5) for primary_sinr in self.primary_sinr_maps]
             sharing_sinr = [self._norm(self.sharing_sinr_map[0][y][x], -1e5, 1e5)]
 
+            # This state definition needs improving - design for better pattern recognition, grid based etc.
+            # also include the other data 
 
             state.extend([norm_x, norm_y] + primary_sinrs + sharing_sinr)
 
@@ -216,26 +222,26 @@ class SionnaEnv(gym.Env):
             self.performance = self.performance[-1*self.max_results_length:]
 
         # Plotting the performance
-        if self.e >= 1:
-            plot_performance(episode=self.e,
+        if self.timestep >= 1:
+            plot_performance(step=self.timestep,
                              users=self.users,
                              performance=self.performance, 
                              save_path=self.cfg.images_path)
             
-        self.fig_0, self.ax_0  = plot_motion(episode=self.e, 
-                                  id="Sharing Band, Max SINR", 
-                                  grid=self.valid_area, 
-                                  cm=tf.reduce_max(self.sharing_sinr_map, axis=0), 
-                                  color="viridis",
-                                  users=self.users, 
-                                  transmitters=self.transmitters, 
-                                  cell_size=self.cfg.cell_size, 
-                                  fig=self.fig_0,
-                                  ax=self.ax_0, 
-                                  save_path=self.cfg.images_path)
+        self.fig_0, self.ax_0  = plot_motion(step=self.timestep, 
+                                             id="Sharing Band, Max SINR", 
+                                             grid=self.valid_area, 
+                                             cm=tf.reduce_max(self.sharing_sinr_map, axis=0), 
+                                             color="viridis",
+                                             users=self.users, 
+                                             transmitters=self.transmitters, 
+                                             cell_size=self.cfg.cell_size, 
+                                             fig=self.fig_0,
+                                             ax=self.ax_0, 
+                                             save_path=self.cfg.images_path)
         
         for id, primary_sinr_map in enumerate(self.primary_sinr_maps):
-            self.primary_figs[id], self.primary_axes[id] = plot_motion(episode=self.e, 
+            self.primary_figs[id], self.primary_axes[id] = plot_motion(step=self.timestep, 
                                                                        id=f"Primary Band {id}, SINR", 
                                                                        grid=self.valid_area, 
                                                                        cm=tf.reduce_max(primary_sinr_map, axis=0), 
@@ -247,7 +253,7 @@ class SionnaEnv(gym.Env):
                                                                        ax=self.primary_axes[id], 
                                                                        save_path=self.cfg.images_path)
         
-        plot_rewards(episode=self.e,
+        plot_rewards(step=self.timestep,
                      rewards=self.rewards,
                      save_path=self.cfg.images_path)
 

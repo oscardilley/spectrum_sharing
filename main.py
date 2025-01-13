@@ -14,58 +14,58 @@ import os
 import matplotlib.pyplot as plt
 
 from RL_simulator import SionnaEnv
+from DQN_agent import Agent, ReplayBuffer
 
 def main(cfg):
     """Run the simulator."""
     # Starting simulator
     env = SionnaEnv(cfg)
+    buffer = ReplayBuffer(cfg.buffer_max_size)
+    agent = Agent(cfg,
+                  state_shape=env.observation_space.shape,
+                  action_shape=env.action_space.shape)
     done = False
-    observation = env.reset(seed=cfg.random_seed)
-    env.render()
 
-    for e in range(cfg.episodes):
-        print("Starting Episode: ", env.e)
-        start = perf_counter()
+    for e in range(int(cfg.episodes)):
+        print("Starting Episode: ", e)
+        observation = env.reset(seed=cfg.random_seed)
+        env.render()
+        step = 0
 
-        # # Determining next action
-        # while(True):
-        #     random = tf.random.uniform(shape=(len(cfg.transmitters),), minval=0, maxval=1)
-        #     transmitter_states = random >= 0.5    
-        #     if np.all(transmitter_states.numpy() == False):
-        #         # in the future, shortcut this and go straight to rewards without calculation
-        #         continue
-        #     else:
-        #         # Used to ensure number of matplotlib figures is managed
-        #         # print(plt.get_fignums())
-        #         # for fig_num in plt.get_fignums():
-        #         #     print(f"FIGURE {fig_num}")
-        #         #     fig = plt.figure(fig_num)  # Access the figure by its number
-        #         #     title = fig._suptitle.get_text() if fig._suptitle else "No Title"
-        #         #     for ax in plt.figure(fig_num).axes:
-        #         #         print(ax.get_title())
-        #         #     print(title)
-        #         transmitter_powers = tf.convert_to_tensor(env.action_space.sample()[1], dtype=tf.float32)
-        #         break
-        # action = (transmitter_states, transmitter_powers)
-        
-        action = env.action_space.sample()
-        print("Action: ", action)
-        observation, reward, terminated, truncated, info = env.step(action)
+        while True:
+            print("Step: ", env.timestep)
+            start = perf_counter()        
+            action = env.action_space.sample()
 
-        # Rendering and concluding step
-        if e % 1 == 0: # Rendering will slow down the simulation so best to run out of loop and playback later
-            env.render()
-        
-        # Clearing up
-        if terminated or truncated:
-            print("Episode terminated or truncated. Resetting Env.")   
-            observation = env.reset(seed=cfg.random_seed)
+
+            # Taking action
+            agent.act(observation)
+
+
+            print("Action: ", action)
+            next_observation, reward, terminated, truncated, info = env.step(action)
+            buffer.add((observation, action, reward, next_observation, terminated))
+            observation = next_observation
             env.render()
 
-        # Noting run time
-        end = perf_counter()
-        print(f"\t{round(end-start, 5)}s elapsed.")
+            agent.train(buffer, cfg.training_batch_size)
 
+            print(reward)
+
+            
+            
+            # Clearing up
+            if terminated or truncated:
+                print("Episode terminated or truncated. Resetting Env.")   
+                break
+
+            # Noting run time
+            step += 1
+            end = perf_counter()
+            print(f"\t{round(end-start, 5)}s elapsed.")
+
+        if e % cfg.target_update_freq == 0:
+            agent.update_target()
 
     return
 
