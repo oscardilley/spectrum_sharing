@@ -88,7 +88,7 @@ def plot_motion(episode,
 
     # Plotting the coverage map
     cm_db = 10 * tf.math.log(cm) / tf.math.log(10.0)
-    map = ax.imshow(cm_db, cmap=color, origin='lower', alpha=0.7, extent=[0, x_max, 0, y_max])
+    map = ax.imshow(cm_db, cmap=color, origin='lower', alpha=0.7, extent=[0, x_max, 0, y_max], vmin=-100, vmax=100)
     if episode == 0:
         cbar = fig.colorbar(map, ax=ax, shrink=0.8)
         cbar.set_label("SINR [dB]", fontsize=16) 

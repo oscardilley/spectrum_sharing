@@ -1,5 +1,6 @@
 # Basic configuration parameters:
 episodes: 20
+episode_limit: 300
 random_seed: 42
 num_rx: 20
 max_depth: 3

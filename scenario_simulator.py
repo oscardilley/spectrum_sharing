@@ -6,6 +6,7 @@ For iterating through episodes of Sionna simulations.
 
 import tensorflow as tf
 from sionna.rt import load_scene, PlanarArray, Transmitter, Receiver
+import numpy as np
 
 from channel_simulator import ChannelSimulator
 
@@ -70,7 +71,7 @@ class FullSimulator:
     def _scene_init(self):
         """ Initialising the scene. """
         self.scene = self._create_scene()
-        _, area = self._coverage_map(init=True) # used to determine all possible valid areas
+        self.cm, area = self._coverage_map(init=True) # used to determine all possible valid areas
         self.cm, self.sinr = self._coverage_map(init=False) # correcting power levels
         self.grid = self._validity_matrix(self.cm.num_cells_x, self.cm.num_cells_y, area)
         return
@@ -106,7 +107,7 @@ class FullSimulator:
         self.scene.bandwidth = self.bandwidth
 
         for tx, state in zip(self.transmitters.keys(), self.state):
-            if bool(state):                
+            if bool(state) or init: # all transmitters are added for initialisation to map area             
                 if tx not in self.scene.transmitters:
                     # Adding new transmitters
                     transmitter = Transmitter(name=self.transmitters[tx]["name"],
@@ -124,6 +125,9 @@ class FullSimulator:
             else:
                 # Removing transmitter
                 self.scene.remove(tx)
+
+        if self.scene.transmitters == {}:
+            return self.cm, tf.zeros(shape=(self.num_tx, self.cm.num_cells_y, self.cm.num_cells_x), dtype=tf.float32)
 
         # Generating a coverage map for max power to establish valid UE regions
         cm = self.scene.coverage_map(max_depth=self.max_depth,           # Maximum number of ray scene interactions
@@ -148,12 +152,27 @@ class FullSimulator:
 
     def __call__(self, receivers, state, transmitters=None):
         """ Running an episode. """
+        blers = [] # can be used to estimate throughput
+        sinrs = []
+        rates = []
+        count = 0
         # Updating transmitters
         self.transmitters = transmitters
 
         # Apply the state and update the coverage map to obtain new 
         self.state = state
         self.cm, self.sinr = self._coverage_map() 
+
+        if np.all(self.state.numpy() == False):
+
+            for state in self.state:
+                blers.append(tf.ones(self.num_rx, dtype=tf.float64))
+                sinrs.append(tf.constant(-1e5, shape=(self.num_rx), dtype=tf.float32))
+                rates.append(tf.zeros(shape=(self.num_rx), dtype=tf.float32))
+            results = {"bler": tf.stack(blers), "sinr": tf.stack(sinrs), "rate": tf.stack(rates)}
+        
+            return results
+
 
         # Updating the receivers
         per_rx_sinr = self.update_receivers(receivers)
@@ -173,11 +192,6 @@ class FullSimulator:
 
         # Bit level simulation
         bler, sinr = self.simulator(block_size=self.batch_size)
-
-        blers = [] # can be used to estimate throughput
-        sinrs = []
-        rates = []
-        count = 0
 
         # Handling dynamic size of state:
         for state in self.state:

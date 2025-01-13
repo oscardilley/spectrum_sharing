@@ -22,16 +22,28 @@ class SionnaEnv(gym.Env):
     def __init__(self, cfg):
         """ Initialisation of the environment. """
         self.cfg = cfg
+        self.limit = cfg.episode_limit
         self.transmitters = dict(self.cfg.transmitters)
         self.num_tx = len(self.transmitters)
-        print("Num Transmitters: ", self.num_tx)
-        self.sharing_state = tf.ones(shape=(self.num_tx), dtype=tf.bool)
         self.max_results_length = self.cfg.max_results_length
         self.primary_bandwidth = self.cfg.primary_fft_size * self.cfg.primary_subcarrier_spacing
         self.sharing_bandwidth = self.cfg.primary_fft_size * self.cfg.primary_subcarrier_spacing
         self.primaryBands = {}
         self.initial_states = {}
         self.norm_ranges= {"throughput": (0, 50), "se": (0, 10), "pe": (0, 20), "su": (0, 10)}
+
+        # Set up gym standard attributes
+        self.truncated = False
+        self.terminated = False # not used
+        transmitter_states = spaces.MultiBinary(len(self.transmitters)) # each transmitter has power and state (ON/OFF)
+        transmitter_powers = spaces.Box(low=1, high=50, shape=(len(self.transmitters),), dtype=np.int16) # power in dBm  
+        self.action_space = spaces.Tuple((transmitter_states, transmitter_powers), seed=self.cfg.random_seed)     
+        self.observation_space = None
+        
+        # Initialising the transmitters, ensuring atleast one transmitter is active
+        initial_action = self.action_space.sample()
+        self.sharing_state = tf.convert_to_tensor(initial_action[0], dtype=tf.bool)
+        self.power = tf.convert_to_tensor(self.action_space.sample()[1], dtype=tf.float32)
 
         for id, tx in enumerate(self.transmitters.values()):
             self.initial_states["PrimaryBand"+str(id)] = tf.cast(tf.one_hot(id, self.num_tx, dtype=tf.int16), dtype=tf.bool)
@@ -65,16 +77,14 @@ class SionnaEnv(gym.Env):
                                     fft_size = self.cfg.sharing_fft_size,
                                     batch_size=self.cfg.batch_size,
                                     )
-        # Set up gym standard attributes
-        # action space - all valid actions - defined based on the number of transmitters
-        # observation space - all valid observations
-
-
+    
 
         
     def reset(self, seed=None, options=None):
         """ Reset the environment to its initial state. """
         super().reset(seed=seed)
+
+        # Initialising data structures
         self.e = 0
         self.users={}
         self.performance=[]
@@ -84,6 +94,11 @@ class SionnaEnv(gym.Env):
         self.primary_axes = [None for _ in range(self.num_tx)]
         self.rewards = tf.zeros(shape=(self.cfg.episodes, 4), dtype=tf.float32)
         self.norm_rewards = tf.zeros(shape=(self.cfg.episodes, 4), dtype=tf.float32)
+
+        # Resetting key attributes
+        initial_action = self.action_space.sample()
+        self.sharing_state = tf.convert_to_tensor(initial_action[0], dtype=tf.bool)
+        self.power = tf.convert_to_tensor(self.action_space.sample()[1], dtype=tf.float32)
         [primaryBand.reset() for primaryBand in self.primaryBands.values()]
         self.sharingBand.reset()
         grids = [primaryBand.grid for primaryBand in self.primaryBands.values()]
@@ -91,17 +106,21 @@ class SionnaEnv(gym.Env):
         for i in range(len(grids)):
             self.valid_area = tf.math.logical_or(self.valid_area, grids[i]) # shape [y_max, x_max]
         self.users = update_users(self.valid_area, self.cfg.num_rx, self.users) # getting initial user positions.
+        # Updating SINR maps
         self.primary_sinr_maps = [primaryBand.sinr for primaryBand in self.primaryBands.values()]    
         self.sharing_sinr_map = self.sharingBand.sinr
 
-        return self._get_state()
+        return self._get_obs()
 
     def step(self, action):
         """ Step through the environment. """
-        self.sharing_state = action
+        self.sharing_state = tf.convert_to_tensor(action[0], dtype=tf.bool)
+        self.power = tf.convert_to_tensor(action[1], dtype=tf.float32)
 
-        # Update the transmission power (up to the max, in fix granuals)
-
+        # Updating the transmitters
+        for id, tx in enumerate(self.transmitters.values()):
+            #tx["primary_power"] = int(self.power[id])
+            tx["sharing_power"] = int(self.power[id])
 
         # Generating the initial user positions based on logical OR of validity matrices
         if self.e > 0:
@@ -110,6 +129,10 @@ class SionnaEnv(gym.Env):
         # Running the simulation - with separated primary bands
         primaryOutputs = [primaryBand(self.users, state, self.transmitters) for primaryBand, state in zip(self.primaryBands.values(), self.initial_states.values())]
         sharingOutput = self.sharingBand(self.users, self.sharing_state, self.transmitters)
+
+        # Updating SINR maps
+        self.primary_sinr_maps = [primaryBand.sinr for primaryBand in self.primaryBands.values()]    
+        self.sharing_sinr_map = self.sharingBand.sinr
 
         # Combining the primary bands for the different transmitters:
         primaryOutput = {"bler": tf.stack([primaryOutput["bler"][i,:] for primaryOutput, i in zip(primaryOutputs, range(len(self.initial_states.values())))]), 
@@ -153,27 +176,16 @@ class SionnaEnv(gym.Env):
         self.norm_rewards = tf.tensor_scatter_nd_update(self.norm_rewards, indices, tf.reshape(norm_updates, (4,)))
         reward = tf.reduce_sum(self.norm_rewards)
 
+        # Infinite-horizon problem so we terminate at an arbitraty point - the agent does not know about this limit
+        if self.e >= self.limit:
+            self.truncated = True
+
         self.e += 1
-
-
-
-        # To model as an MDP, we need to return a state which captures all necessary information for , not dependent on history
-            # Unsure if it satisfies the Markov property, as there is a stochastic element
-            # as long as the future state stochastic element is independent of the past state, it should be Markov
-            # everything in state and action should be sufficient to calculate the reward
-
-            # it is MDP - POMDP would be if the base stations make their own decisions - distributed RL
-
-        # define the action space using spaces 
-
-
-
         # returns the 5-tuple (observation, reward, terminated, truncated, info)
-            # need to add logic to detect if final episode and return done or truncated if ended early e.g. due to a limit
-        return self._get_state(), reward, False, False, {"rewards": self.rewards}
-        # return None, reward, False, False, {"rewards": self.rewards}
+        return self._get_obs(), reward, self.terminated, self.truncated, {"rewards": self.rewards}
 
-    def _get_state(self):
+
+    def _get_obs(self):
         """ Getting the data for the current state. """
          # Adding normalised values to the state array
         state = []

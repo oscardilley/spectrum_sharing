@@ -19,33 +19,50 @@ def main(cfg):
     """Run the simulator."""
     # Starting simulator
     env = SionnaEnv(cfg)
-    initial_state = env.reset(seed=cfg.random_seed)
-    action = tf.convert_to_tensor([True for _ in range(len(cfg.transmitters))], dtype=tf.bool)
-    print("Initial transmitter state: ", action)
+    done = False
+    observation = env.reset(seed=cfg.random_seed)
+    env.render()
+
     for e in range(cfg.episodes):
-        print("Starting Episode: ", e)
+        print("Starting Episode: ", env.e)
         start = perf_counter()
-        state, reward, done, _, _ = env.step(action)
-        while(True):
-            random = tf.random.uniform(shape=(len(cfg.transmitters),), minval=0, maxval=1)
-            action = random >= 0.5    
-            if np.all(action.numpy() == False):
-                # in the future, shortcut this and go straight to rewards without calculation
-                continue
-            else:
-                # Used to ensure number of matplotlib figures is managed
-                # print(plt.get_fignums())
-                # for fig_num in plt.get_fignums():
-                #     print(f"FIGURE {fig_num}")
-                #     fig = plt.figure(fig_num)  # Access the figure by its number
-                #     title = fig._suptitle.get_text() if fig._suptitle else "No Title"
-                #     for ax in plt.figure(fig_num).axes:
-                #         print(ax.get_title())
-                #     print(title)
-                break
+
+        # # Determining next action
+        # while(True):
+        #     random = tf.random.uniform(shape=(len(cfg.transmitters),), minval=0, maxval=1)
+        #     transmitter_states = random >= 0.5    
+        #     if np.all(transmitter_states.numpy() == False):
+        #         # in the future, shortcut this and go straight to rewards without calculation
+        #         continue
+        #     else:
+        #         # Used to ensure number of matplotlib figures is managed
+        #         # print(plt.get_fignums())
+        #         # for fig_num in plt.get_fignums():
+        #         #     print(f"FIGURE {fig_num}")
+        #         #     fig = plt.figure(fig_num)  # Access the figure by its number
+        #         #     title = fig._suptitle.get_text() if fig._suptitle else "No Title"
+        #         #     for ax in plt.figure(fig_num).axes:
+        #         #         print(ax.get_title())
+        #         #     print(title)
+        #         transmitter_powers = tf.convert_to_tensor(env.action_space.sample()[1], dtype=tf.float32)
+        #         break
+        # action = (transmitter_states, transmitter_powers)
         
-        print("Next Action: ", action)
-        env.render()
+        action = env.action_space.sample()
+        print("Action: ", action)
+        observation, reward, terminated, truncated, info = env.step(action)
+
+        # Rendering and concluding step
+        if e % 1 == 0: # Rendering will slow down the simulation so best to run out of loop and playback later
+            env.render()
+        
+        # Clearing up
+        if terminated or truncated:
+            print("Episode terminated or truncated. Resetting Env.")   
+            observation = env.reset(seed=cfg.random_seed)
+            env.render()
+
+        # Noting run time
         end = perf_counter()
         print(f"\t{round(end-start, 5)}s elapsed.")
 
