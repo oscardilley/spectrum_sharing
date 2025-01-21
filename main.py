@@ -22,8 +22,8 @@ def main(cfg):
     env = SionnaEnv(cfg)
     buffer = ReplayBuffer(cfg.buffer_max_size)
     agent = Agent(cfg,
-                  state_shape=env.observation_space.shape,
-                  action_shape=env.action_space.shape)
+                  observation_space=env.observation_space,
+                  action_space=env.action_space)
     done = False
 
     for e in range(int(cfg.episodes)):
@@ -35,22 +35,20 @@ def main(cfg):
         while True:
             print("Step: ", env.timestep)
             start = perf_counter()        
-            action = env.action_space.sample()
+            # action = env.action_space.sample() # use for random action sampling
 
 
             # Taking action
-            agent.act(observation)
-
-
+            action, action_id = agent.act(observation)
             print("Action: ", action)
             next_observation, reward, terminated, truncated, info = env.step(action)
-            buffer.add((observation, action, reward, next_observation, terminated))
+            buffer.add((observation, action_id, reward, next_observation, terminated))
             observation = next_observation
             env.render()
 
             agent.train(buffer, cfg.training_batch_size)
 
-            print(reward)
+            print("Reward: ", reward)
 
             
             
@@ -79,5 +77,6 @@ if __name__ == "__main__":
         #tf.random.set_seed(config.random_seed)
         # os.environ['TF_DETERMINISTIC_OPS'] = '1'
         # os.environ['TF_CUDNN_DETERMINISTIC'] = '1'
+        np.random.seed(config.random_seed)
 
     main(config)

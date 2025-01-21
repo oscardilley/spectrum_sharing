@@ -99,7 +99,7 @@ class ChannelSimulator(tf.keras.Model):
             self.pusch_transmitter._target_coderate, 
             self.pusch_transmitter.resource_grid) for item in ebno])
 
-    @tf.function(jit_compile=True)
+    @tf.function(jit_compile=True, reduce_retracing=True)
     def iterate(self, ins):
         h, noise = ins
         y = self.channel([self.x, h, noise]) # noise is due to the physical channel effects and noise

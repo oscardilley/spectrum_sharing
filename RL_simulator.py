@@ -36,8 +36,8 @@ class SionnaEnv(gym.Env):
         self.truncated = False
         self.terminated = False # not used
         transmitter_states = spaces.MultiBinary(len(self.transmitters)) # each transmitter has power and state (ON/OFF)
-        transmitter_powers = spaces.Box(low=1, high=50, shape=(len(self.transmitters),), dtype=np.int16) # power in dBm  
-        self.action_space = spaces.Tuple((transmitter_states, transmitter_powers), seed=self.cfg.random_seed)     
+        transmitter_powers = spaces.Discrete(n=10, start=25, seed=self.cfg.random_seed) # power in dBm  
+        self.action_space = spaces.Tuple((transmitter_states, transmitter_powers, transmitter_powers), seed=self.cfg.random_seed)     
         self.observation_space = spaces.Box(low=0,
                                             high=1,
                                             shape=(int(self.cfg.num_rx * (2 + self.num_tx + 1)),), # num_rx * (2 coords + num_tx primary + 1 sharing SINR)
@@ -119,7 +119,8 @@ class SionnaEnv(gym.Env):
     def step(self, action):
         """ Step through the environment. """
         self.sharing_state = tf.convert_to_tensor(action[0], dtype=tf.bool)
-        self.power = tf.convert_to_tensor(action[1], dtype=tf.float32)
+        self.power = tf.convert_to_tensor(action[1:], dtype=tf.float32)
+
 
         # Updating the transmitters
         for id, tx in enumerate(self.transmitters.values()):
