@@ -15,6 +15,7 @@ from gymnasium import spaces
 from plotting import plot_motion, plot_performance, plot_rewards
 from utils import update_users, get_throughput, get_spectral_efficiency, get_power_efficiency, get_spectrum_utility
 from scenario_simulator import FullSimulator
+from logger import logger
 
 class SionnaEnv(gym.Env):
     """ Sionna environment for reinforcement learning. """
@@ -22,7 +23,7 @@ class SionnaEnv(gym.Env):
     def __init__(self, cfg):
         """ Initialisation of the environment. """
         self.cfg = cfg
-        self.limit = cfg.episode_limit
+        self.limit = cfg.step_limit
         self.transmitters = dict(self.cfg.transmitters)
         self.num_tx = len(self.transmitters)
         self.max_results_length = self.cfg.max_results_length
@@ -96,8 +97,8 @@ class SionnaEnv(gym.Env):
         self.ax_0 = None
         self.primary_figs = [None for _ in range(self.num_tx)]
         self.primary_axes = [None for _ in range(self.num_tx)]
-        self.rewards = tf.zeros(shape=(self.cfg.episodes, 4), dtype=tf.float32)
-        self.norm_rewards = tf.zeros(shape=(self.cfg.episodes, 4), dtype=tf.float32)
+        self.rewards = tf.zeros(shape=(self.cfg.step_limit + 1, 4), dtype=tf.float32)
+        self.norm_rewards = tf.zeros(shape=(self.cfg.step_limit + 1, 4), dtype=tf.float32)
 
         # Resetting key attributes
         initial_action = self.action_space.sample()
@@ -120,7 +121,6 @@ class SionnaEnv(gym.Env):
         """ Step through the environment. """
         self.sharing_state = tf.convert_to_tensor(action[0], dtype=tf.bool)
         self.power = tf.convert_to_tensor(action[1:], dtype=tf.float32)
-
 
         # Updating the transmitters
         for id, tx in enumerate(self.transmitters.values()):
@@ -179,13 +179,15 @@ class SionnaEnv(gym.Env):
                                  self._norm(su,self.norm_ranges["su"][0],self.norm_ranges["su"][1])], axis=0)
         self.rewards = tf.tensor_scatter_nd_update(self.rewards, indices, tf.reshape(updates, (4,)))
         self.norm_rewards = tf.tensor_scatter_nd_update(self.norm_rewards, indices, tf.reshape(norm_updates, (4,)))
-        reward = tf.reduce_sum(self.norm_rewards)
+        # reward = tf.reduce_sum(self.norm_rewards)
+        reward = tf.reduce_sum(norm_updates)
 
-        self.timestep += 1
         # Infinite-horizon problem so we terminate at an arbitraty point - the agent does not know about this limit
-        if self.timestep == self.limit - 1:
-            print("Episode limit reached.")
+        if self.timestep == self.limit:
+            logger.warning("Last step of episode, Truncated.")
             self.truncated = True
+        # self.timestep += 1 # moved into main script for more control
+
         # returns the 5-tuple (observation, reward, terminated, truncated, info)
         return self._get_obs(), reward, self.terminated, self.truncated, {"rewards": self.rewards}
 
@@ -228,6 +230,9 @@ class SionnaEnv(gym.Env):
                              users=self.users,
                              performance=self.performance, 
                              save_path=self.cfg.images_path)
+            plot_rewards(step=self.timestep,
+                         rewards=self.rewards,
+                         save_path=self.cfg.images_path)
             
         self.fig_0, self.ax_0  = plot_motion(step=self.timestep, 
                                              id="Sharing Band, Max SINR", 
@@ -254,8 +259,5 @@ class SionnaEnv(gym.Env):
                                                                        ax=self.primary_axes[id], 
                                                                        save_path=self.cfg.images_path)
         
-        plot_rewards(step=self.timestep,
-                     rewards=self.rewards,
-                     save_path=self.cfg.images_path)
 
         return

@@ -17,22 +17,19 @@ def plot_rewards(step,
     reward_labels = ["Total Throughput [MHz]", "Spectral Efficiency [bits/s/Hz]", "Power Efficiency [W/MHz]", "Spectrum Utility [bits/s/Hz]"]
     reward_titles = ["Total Throughput", "Spectral Efficiency", "Power Efficiency", "Spectrum Utility"]
     fig, axes = plt.subplots(2, 2, figsize=(15, 10), constrained_layout=True)
-    cmap = plt.get_cmap("Dark2", len(rewards))
+    cmap = plt.get_cmap("tab10", rewards.shape[1])
 
-    # length = int(rewards.shape[1])
     upper_x = step + 1
-    lower_x = step - 1
     x = np.linspace(0, step, upper_x)
 
     for i, ax in enumerate(fig.axes):
-        ax.plot(x, rewards[:upper_x,i], linewidth=1.5, linestyle="solid", color=cmap(i), alpha=0.8)
-        ax.set_xlim([0, lower_x])
+        ax.plot(x, rewards[:upper_x,i], linewidth=2, linestyle="solid", color=cmap(i), alpha=0.8)
+        ax.set_xlim([0, step])
         ax.set_title(reward_titles[i], fontsize=16)
         ax.set_xlabel("Step", fontsize=12)
         ax.set_ylabel(reward_labels[i], fontsize=12)
 
     fig.savefig(save_path + f"Rewards.png", dpi=400)#, bbox_inches="tight")
-
     plt.close()
 
     return 
@@ -65,14 +62,12 @@ def plot_motion(step,
 
     # Axis initialisation
     if ax is None or fig is None:
-        
         fig, ax = plt.subplots(figsize=(int(x_max/4), int(y_max/4)), constrained_layout=True)
     
-        # Add gridlines
+        # Add gridlines and lims
         ax.set_xticks(np.arange(x_max), minor=True)
         ax.set_yticks(np.arange(y_max), minor=True)
         ax.tick_params(which='minor', size=0)  # Remove tick markers for minor grid lines
-
         ax.set_xlim([0, x_max])
         ax.set_ylim([0, y_max])
 
@@ -109,13 +104,12 @@ def plot_motion(step,
     ax.legend()
     
     if id == "Sharing Band, Max SINR":
-        fig.savefig(save_path + f"Scene {id} Ep{step}.png")
+        fig.savefig(save_path + f"Scene {id} Step{step}.png")
     else:
         fig.savefig(save_path + f"Scene {id}.png")#, bbox_inches="tight")
 
     for i in range(len(users)):
         ax.plot([x_positions[i], x_positions[i] + dx[i]], [y_positions[i], y_positions[i] + dy[i]], color=cmap(i), linewidth=2.5)
-
 
     return fig, ax
 

@@ -1,12 +1,13 @@
 # Simulation
-episodes: 100
-episode_limit: 300
+episodes: 1000
+step_limit: 100
 random_seed: 42
 
 # General
 max_results_length: 10 # for plotting
 images_path: "/home/ubuntu/spectrum_sharing/Simulations/"
 log_path: "/home/ubuntu/spectrum_sharing/Logging/"
+models_path: "/home/ubuntu/spectrum_sharing/Models/"
 
 # Scene and Sionna
 num_rx: 20
@@ -23,11 +24,11 @@ cell_size: 3
 # Model and training
 training_batch_size: 10 # in timesteps
 target_network_update_freq: 5 # in episodes
-buffer_max_size: 100000
+buffer_max_size: 10000000
 gamma: 0.99
-epsilon_start: 0.95
+epsilon_start: 1.0
 epsilon_min: 0.1
-epsilon_decay: 0.995
+epsilon_decay: 0.998
 learning_rate: 0.001
 
 # Transmitters

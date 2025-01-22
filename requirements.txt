@@ -7,3 +7,4 @@ tinydb
 runipy
 pandas
 gymnasium
+colorlog
