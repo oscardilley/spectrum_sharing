@@ -182,6 +182,15 @@ class SionnaEnv(gym.Env):
         # reward = tf.reduce_sum(self.norm_rewards)
         reward = tf.reduce_sum(norm_updates)
 
+        if (np.isnan(reward.numpy())):
+            # Known bug - sometimes returning NAN for throughput, se and su
+            # Probably a rates problem propagated through
+            logger.critical("Reward NAN")
+            logger.critical(f"Norm updates: {norm_updates}")
+            logger.critical(f"Updates: {updates}")
+            logger.critical(f"Rates: {rates}")
+            return None, None, None, None, None
+
         # Infinite-horizon problem so we terminate at an arbitraty point - the agent does not know about this limit
         if self.timestep == self.limit:
             logger.warning("Last step of episode, Truncated.")
@@ -218,7 +227,7 @@ class SionnaEnv(gym.Env):
 
         return (value - min_val) / (max_val - min_val)
     
-    def render(self):
+    def render(self, episode):
         """ Visualising the performance. """
         # Plotting the performance and motion
         if len(self.performance) > self.max_results_length: # managing stored results size
@@ -230,7 +239,8 @@ class SionnaEnv(gym.Env):
                              users=self.users,
                              performance=self.performance, 
                              save_path=self.cfg.images_path)
-            plot_rewards(step=self.timestep,
+            plot_rewards(episode=episode,
+                         step=self.timestep,
                          rewards=self.rewards,
                          save_path=self.cfg.images_path)
             

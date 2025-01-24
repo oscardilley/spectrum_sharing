@@ -9,6 +9,7 @@ from sionna.rt import load_scene, PlanarArray, Transmitter, Receiver
 import numpy as np
 
 from channel_simulator import ChannelSimulator
+from logger import logger
 
 
 class FullSimulator:
@@ -166,6 +167,7 @@ class FullSimulator:
         if np.all(self.state.numpy() == False):
 
             for state in self.state:
+                logger.warning("Skipping calculation as all states are False.")
                 blers.append(tf.ones(self.num_rx, dtype=tf.float64))
                 sinrs.append(tf.constant(-1e5, shape=(self.num_rx), dtype=tf.float32))
                 rates.append(tf.zeros(shape=(self.num_rx), dtype=tf.float32))
@@ -204,11 +206,23 @@ class FullSimulator:
                 sinrs.append(tf.constant(-1e5, shape=(self.num_rx), dtype=tf.float32)) # SINR in dB so need to force to -inf
 
         # Calculate the users achieving < 1 BLER to schedule  
-        num_scheduled = tf.math.count_nonzero(tf.less(blers, 1))
-        max_data_sent_per_ue = (self.simulator.pusch_config.tb_size * self.batch_size) / num_scheduled # bits
+        num_scheduled = tf.math.count_nonzero(tf.less(blers, 1)) # problem here when all achieve zero communication even with a transmitter on
+        if num_scheduled.numpy() == 0:
+            logger.warning("Transmitters on but all BLER = 1.")
+            max_data_sent_per_ue = 0 
+        else:
+            max_data_sent_per_ue = (self.simulator.pusch_config.tb_size * self.batch_size) / num_scheduled # bits
         time_step = (self.batch_size / self.simulator.pusch_config.carrier.num_slots_per_frame) * self.simulator.pusch_config.carrier.frame_duration
         max_rate_per_ue = max_data_sent_per_ue / time_step
         rates = [(1 - bler) * max_rate_per_ue for bler in blers]
+        
+        if (np.isnan(np.array(rates)).any()):
+            # Remove once bug fixed
+            logger.critical("Detected rates NAN")
+            logger.critical(f"Max rate: {max_rate_per_ue}")
+            logger.critical(f"BLERS: {blers}")
+            logger.critical(f"Rates: {rates}")
+            
 
         results = {"bler": tf.stack(blers), "sinr": tf.stack(sinrs), "rate": tf.stack(rates)}
 

@@ -76,4 +76,4 @@ def get_spectrum_utility(primary_bw, sharing_bw, sharing_state, total_throughput
     total_primary_spectrum = tf.reduce_sum(num_bs * primary_bw)
     total_sharing_spectrum = tf.reduce_sum(tf.cast(sharing_state, tf.float32) * sharing_bw)
 
-    return  tf.cast(total_throughput * 1e6, dtype=tf.float32) /(total_primary_spectrum + total_sharing_spectrum)
+    return  tf.cast(total_throughput * 1e6, dtype=tf.float32) / (total_primary_spectrum + total_sharing_spectrum)

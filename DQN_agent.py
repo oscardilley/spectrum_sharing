@@ -118,7 +118,7 @@ class Agent:
         self.epsilon = max(self.epsilon_min, self.epsilon * self.epsilon_decay)
         logger.info(f"New Epsilon: {self.epsilon}")
 
-        if timestep % 50 == 0:
+        if timestep % 33 == 0:
             logger.info("Periodically saving model.")
             self.save_model()
         
@@ -152,7 +152,7 @@ class ReplayBuffer:
     def add(self, experience, timestep):
         self.buffer.append(experience) 
 
-        if timestep % 50 == 0:
+        if timestep % 33 == 0:
             logger.info(f"Periodic saving buffer. Length: {self.__len__()}")
             self.save_buffer()
 

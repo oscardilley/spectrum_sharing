@@ -9,7 +9,8 @@ import matplotlib as mpl
 import tensorflow as tf
 import numpy as np
 
-def plot_rewards(step,
+def plot_rewards(episode,
+                 step,
                  rewards,
                  save_path="/home/ubuntu/spectrum_sharing/Simulations/"):
     """ Plot reward functions over time."""
@@ -29,7 +30,7 @@ def plot_rewards(step,
         ax.set_xlabel("Step", fontsize=12)
         ax.set_ylabel(reward_labels[i], fontsize=12)
 
-    fig.savefig(save_path + f"Rewards.png", dpi=400)#, bbox_inches="tight")
+    fig.savefig(save_path + f"Rewards Ep{episode}.png", dpi=400)#, bbox_inches="tight")
     plt.close()
 
     return 

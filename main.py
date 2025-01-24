@@ -38,11 +38,14 @@ def main(cfg):
             action, action_id = agent.act(observation)
             logger.info(f"Action: {action}")
             next_observation, reward, terminated, truncated, _ = env.step(action) 
-            print(truncated)
-            buffer.add((observation, action_id, reward, next_observation, terminated), env.timestep)
+            if next_observation is None: 
+                logger.critical("Exiting episode after error to prevent propagation.")
+                break
+
+            buffer.add((observation, action_id, reward, next_observation, terminated), env.timestep) # consider adding truncated OR terminated
             logger.info(f"Reward: {reward}")
             observation = next_observation
-            env.render() # rendering post action, images show end of round
+            env.render(episode=e) # rendering post action, images show end of round
 
             agent.train(buffer, cfg.training_batch_size, env.timestep)
 
@@ -74,7 +77,7 @@ if __name__ == "__main__":
     with initialize(version_base=None, config_path="conf", job_name="simulation"):
         config = compose(config_name="simulation")
         sionna.config.xla_compat=True
-        sionna.config.seed=config.random_seed
+        # sionna.config.seed=config.random_seed
         # tf.random.set_seed(config.random_seed)
         # os.environ['TF_DETERMINISTIC_OPS'] = '1'
         # os.environ['TF_CUDNN_DETERMINISTIC'] = '1'
