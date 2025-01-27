@@ -183,12 +183,7 @@ class SionnaEnv(gym.Env):
         reward = tf.reduce_sum(norm_updates)
 
         if (np.isnan(reward.numpy())):
-            # Known bug - sometimes returning NAN for throughput, se and su
-            # Probably a rates problem propagated through
             logger.critical("Reward NAN")
-            logger.critical(f"Norm updates: {norm_updates}")
-            logger.critical(f"Updates: {updates}")
-            logger.critical(f"Rates: {rates}")
             return None, None, None, None, None
 
         # Infinite-horizon problem so we terminate at an arbitraty point - the agent does not know about this limit
@@ -198,7 +193,7 @@ class SionnaEnv(gym.Env):
         # self.timestep += 1 # moved into main script for more control
 
         # returns the 5-tuple (observation, reward, terminated, truncated, info)
-        return self._get_obs(), reward, self.terminated, self.truncated, {"rewards": self.rewards}
+        return self._get_obs(), reward, self.terminated, self.truncated, {"rewards": norm_updates}
 
 
     def _get_obs(self):

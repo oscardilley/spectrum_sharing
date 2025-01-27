@@ -16,6 +16,7 @@ import matplotlib.pyplot as plt
 from RL_simulator import SionnaEnv
 from DQN_agent import Agent, ReplayBuffer
 from logger import logger
+from plotting import plot_total_rewards
 
 def main(cfg):
     """Run the simulator."""
@@ -26,6 +27,13 @@ def main(cfg):
                   observation_space=env.observation_space,
                   action_space=env.action_space,
                   path=cfg.models_path)
+    avg_reward_per_episode = [0.0 for e in range(int(cfg.episodes))]
+    min_reward_per_episode = [float('inf') for e in range(int(cfg.episodes))]
+    max_reward_per_episode = [0.0 for e in range(int(cfg.episodes))]
+    avg_throughput_per_episode = [0.0 for e in range(int(cfg.episodes))]
+    avg_pe_per_episode = [0.0 for e in range(int(cfg.episodes))]
+    avg_se_per_episode = [0.0 for e in range(int(cfg.episodes))]
+    avg_su_per_episode = [0.0 for e in range(int(cfg.episodes))]
 
     for e in range(int(cfg.episodes)):
         logger.info(f"Starting Episode: {e}")
@@ -37,7 +45,8 @@ def main(cfg):
             logger.info(f"Step: {env.timestep}") 
             action, action_id = agent.act(observation)
             logger.info(f"Action: {action}")
-            next_observation, reward, terminated, truncated, _ = env.step(action) 
+            next_observation, reward, terminated, truncated, info = env.step(action) 
+
             if next_observation is None: 
                 logger.critical("Exiting episode after error to prevent propagation.")
                 break
@@ -48,6 +57,15 @@ def main(cfg):
             env.render(episode=e) # rendering post action, images show end of round
 
             agent.train(buffer, cfg.training_batch_size, env.timestep)
+
+            # Storing and plotting reward information
+            avg_reward_per_episode[e] += reward / float(cfg.step_limit)
+            min_reward_per_episode[e] += min(reward, min_reward_per_episode[e])
+            max_reward_per_episode[e] += max(reward, max_reward_per_episode[e])
+            avg_throughput_per_episode[e] += info["rewards"][0].numpy() / float(cfg.step_limit)
+            avg_se_per_episode[e] += info["rewards"][1].numpy() / float(cfg.step_limit)
+            avg_pe_per_episode[e] += info["rewards"][2].numpy() / float(cfg.step_limit)
+            avg_su_per_episode[e] += info["rewards"][3].numpy() / float(cfg.step_limit)
 
             # Clearing up
             if terminated or truncated:
@@ -68,6 +86,16 @@ def main(cfg):
 
             env.timestep += 1
 
+        # Visualisation to track training performance
+        plot_total_rewards(episode=e,
+                           reward=avg_reward_per_episode,
+                           reward_min=min_reward_per_episode,
+                           reward_max=max_reward_per_episode,
+                           throughput=avg_throughput_per_episode,
+                           se=avg_se_per_episode,
+                           pe=avg_pe_per_episode,
+                           su=avg_su_per_episode,
+                           save_path=cfg.images_path)
         continue
 
     logger.critical(f"Completed {e} episodes. Exiting.")

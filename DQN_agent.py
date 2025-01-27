@@ -67,8 +67,9 @@ class Agent:
         """Build the Q-network."""
         model = tf.keras.Sequential([
             tf.keras.layers.Input(shape=self.observation_shape),
-            tf.keras.layers.Dense(64, activation='relu'),
-            tf.keras.layers.Dense(64, activation='relu'),
+            tf.keras.layers.Dense(128, activation='relu'),
+            tf.keras.layers.Dense(128, activation='relu'),
+            tf.keras.layers.Dense(128, activation='relu'),
             tf.keras.layers.Dense(self.num_actions, activation='linear')
         ])
         
@@ -101,7 +102,7 @@ class Agent:
         # Compute target Q-values using the Bellman equation:
         next_qs = self.target_model.predict(next_observations, verbose=0)
         max_next_qs = np.max(next_qs, axis=1)
-        target_qs = rewards + (1 - terminateds) * self.gamma * max_next_qs
+        target_qs = rewards + ((1 - terminateds) * self.gamma * max_next_qs)
         
         # Train Q-network
         with tf.GradientTape() as tape:
@@ -109,7 +110,6 @@ class Agent:
             indices = tf.stack([tf.range(batch_size), actions], axis=1)
             selected_qs = tf.gather_nd(q_values, indices)
             loss = self.loss_function(target_qs, selected_qs)
-            logger.info(f"Loss: {loss}")
         
         grads = tape.gradient(loss, self.model.trainable_variables)
         self.optimizer.apply_gradients(zip(grads, self.model.trainable_variables))

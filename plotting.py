@@ -9,6 +9,46 @@ import matplotlib as mpl
 import tensorflow as tf
 import numpy as np
 
+def plot_total_rewards(episode,
+                       reward,
+                       reward_min,
+                       reward_max,
+                       throughput,
+                       se,
+                       pe,
+                       su,
+                       save_path="/home/ubuntu/spectrum_sharing/Simulations/"):
+    """ Plot reward functions over time."""
+    # Axis initialisation
+    labels = ["Normalised Average Reward", "Normalised Reward Min", "Normalised Reward Max", "Normalised Total Throughput", "Normalised Spectral Efficiency", "Normalised Power Efficiency", "Normalised Spectrum Utility"]
+    fig, ax = plt.subplots(1, 1, figsize=(10,7))#, constrained_layout=True)
+    cmap = plt.get_cmap("tab10", len(labels) - 1) # plot the metrics in consistent colours and the total in black
+
+    upper_x = episode + 1
+    x = np.linspace(0, episode, upper_x)
+
+    # Plotting reward min/max
+    ax.plot(x, reward[0:episode+1], linewidth=2, linestyle="solid", color="black", alpha=0.95)
+    ax.plot(x, reward_min[0:episode+1], linewidth=2, linestyle="dashed", color="black", alpha=0.5)
+    ax.plot(x, reward_max[0:episode+1], linewidth=2, linestyle="dashed", color="black", alpha=0.5)
+
+    # Plotting specific normalised components
+    ax.plot(x, throughput[:episode+1], linewidth=2, linestyle="solid", color=cmap(0), alpha=0.8)
+    ax.plot(x, se[:episode+1], linewidth=2, linestyle="solid", color=cmap(1), alpha=0.8)
+    ax.plot(x, pe[:episode+1], linewidth=2, linestyle="solid", color=cmap(2), alpha=0.8)
+    ax.plot(x, su[:episode+1], linewidth=2, linestyle="solid", color=cmap(3), alpha=0.8)
+
+    ax.set_xlabel("Episode", fontsize=12)
+    ax.set_ylabel("Normalised Value", fontsize=12)
+    ax.set_xlim([0, episode])
+    ax.set_title("Average Performance between Episodes", fontsize=20)
+    ax.legend(labels=labels, fontsize=8)
+
+    fig.savefig(save_path + f"Rewards Tracker.png", dpi=400)#, bbox_inches="tight")
+    plt.close()
+
+    return 
+
 def plot_rewards(episode,
                  step,
                  rewards,
