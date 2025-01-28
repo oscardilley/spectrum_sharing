@@ -198,7 +198,7 @@ def plot_performance(step,
             ax1.set_xticks(x, x)
             ax2 = ax1.twinx()
             ax2.set_ylabel("SINR [dB]")
-            ax2.set_ylim([-80, 70])
+            ax2.set_ylim([-80, 100])
             blerP0, = ax1.plot(x, primary_bler[:,0,ue], linestyle="dashed", color="orangered", alpha=0.8)
             blerP1, = ax1.plot(x, primary_bler[:,1,ue], linestyle="dashed", color="darkred", alpha=0.8)
             sinrP0, = ax2.plot(x, primary_sinr[:,0,ue], linestyle="solid", color="orangered", alpha=0.8)

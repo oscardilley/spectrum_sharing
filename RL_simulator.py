@@ -31,7 +31,7 @@ class SionnaEnv(gym.Env):
         self.sharing_bandwidth = self.cfg.primary_fft_size * self.cfg.primary_subcarrier_spacing
         self.primaryBands = {}
         self.initial_states = {}
-        self.norm_ranges= {"throughput": (0, 50), "se": (0, 10), "pe": (0, 20), "su": (0, 10)}
+        self.norm_ranges= {"throughput": (0, 30), "se": (0, 6), "pe": (0, 6), "su": (0, 6)}
 
         # Set up gym standard attributes
         self.truncated = False
@@ -39,6 +39,16 @@ class SionnaEnv(gym.Env):
         transmitter_states = spaces.MultiBinary(len(self.transmitters)) # each transmitter has power and state (ON/OFF)
         transmitter_powers = spaces.Discrete(n=10, start=25, seed=self.cfg.random_seed) # power in dBm  
         self.action_space = spaces.Tuple((transmitter_states, transmitter_powers, transmitter_powers), seed=self.cfg.random_seed)     
+
+        # Changes - use the transmitter power levels and state as observation inputs
+        # Reduce the action space size by changing to turn up/ turn down power and switch on/off - this will massively reduce the action size
+        # Implications - lots of logic changes need applying 
+        # Do I need to then take into account temporal relations
+        # Might need to apply dynamic masking e.g. for changing power levels of transmitters which are off
+        # this we can argue is more scalable
+
+
+
         self.observation_space = spaces.Box(low=0,
                                             high=1,
                                             shape=(int(self.cfg.num_rx * (2 + self.num_tx + 1)),), # num_rx * (2 coords + num_tx primary + 1 sharing SINR)
@@ -124,7 +134,6 @@ class SionnaEnv(gym.Env):
 
         # Updating the transmitters
         for id, tx in enumerate(self.transmitters.values()):
-            #tx["primary_power"] = int(self.power[id])
             tx["sharing_power"] = int(self.power[id])
 
         # Generating the initial user positions based on logical OR of validity matrices
@@ -179,7 +188,6 @@ class SionnaEnv(gym.Env):
                                  self._norm(su,self.norm_ranges["su"][0],self.norm_ranges["su"][1])], axis=0)
         self.rewards = tf.tensor_scatter_nd_update(self.rewards, indices, tf.reshape(updates, (4,)))
         self.norm_rewards = tf.tensor_scatter_nd_update(self.norm_rewards, indices, tf.reshape(norm_updates, (4,)))
-        # reward = tf.reduce_sum(self.norm_rewards)
         reward = tf.reduce_sum(norm_updates)
 
         if (np.isnan(reward.numpy())):
@@ -190,7 +198,6 @@ class SionnaEnv(gym.Env):
         if self.timestep == self.limit:
             logger.warning("Last step of episode, Truncated.")
             self.truncated = True
-        # self.timestep += 1 # moved into main script for more control
 
         # returns the 5-tuple (observation, reward, terminated, truncated, info)
         return self._get_obs(), reward, self.terminated, self.truncated, {"rewards": norm_updates}
@@ -207,11 +214,9 @@ class SionnaEnv(gym.Env):
             norm_x = self._norm(tf.cast(x, tf.float32), 0, self.valid_area.shape[1])
             norm_y = self._norm(tf.cast(y, tf.float32), 0, self.valid_area.shape[0])
 
-            primary_sinrs = [self._norm(primary_sinr[[0]][y][x], -1e5, 1e5) for primary_sinr in self.primary_sinr_maps]
-            sharing_sinr = [self._norm(self.sharing_sinr_map[0][y][x], -1e5, 1e5)]
-
-            # This state definition needs improving - design for better pattern recognition, grid based etc.
-            # also include the other data 
+            # Converting to dB as well as extracting and normalising
+            primary_sinrs = [self._norm((10*(tf.math.log(primary_sinr[[0]][y][x]) / tf.math.log(10.0))), -100, 100) for primary_sinr in self.primary_sinr_maps]
+            sharing_sinr = [self._norm((10*(tf.math.log(self.sharing_sinr_map[0][y][x]) / tf.math.log(10.0))), -100, 100)]
 
             state.extend([norm_x, norm_y] + primary_sinrs + sharing_sinr)
 
@@ -219,8 +224,9 @@ class SionnaEnv(gym.Env):
     
     def _norm(self, value, min_val, max_val):
         """Min Max Normalisation of value to range [0,1] given a range. """
+        value_clipped = tf.clip_by_value(value, min_val, max_val) # avoiding inf
 
-        return (value - min_val) / (max_val - min_val)
+        return (value_clipped - min_val) / (max_val - min_val)
     
     def render(self, episode):
         """ Visualising the performance. """

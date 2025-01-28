@@ -60,7 +60,7 @@ class Agent:
             self.target_model = self.build_model()
         
         self.optimizer = tf.keras.optimizers.Adam(learning_rate=self.learning_rate)
-        self.loss_function = tf.keras.losses.MeanSquaredError()
+        self.loss_function = tf.keras.losses.Huber(delta=5.0, reduction="sum_over_batch_size", name="huber_loss") # for balance between L1 and L2
         
         # Synchronize the target network
         self.update_target_network()
@@ -89,6 +89,7 @@ class Agent:
             return self.actions[idx], idx
         else:
             q_values = self.model.predict(observation[np.newaxis], verbose=0) # add extra axis for batch
+            logger.info(f"Q-values: Mean={np.mean(q_values)}, Max={np.max(q_values)}, Min={np.min(q_values)}")
             idx = np.argmax(q_values[0])
             logger.info("Q Action.")
             return self.actions[idx], idx
@@ -107,9 +108,7 @@ class Agent:
             max_next_qs = np.max(next_qs, axis=1)
             target_qs = rewards + ((1 - terminateds) * self.gamma * max_next_qs)
 
-            # Issue with training is going to be that the prediction using the target model
-            # is too large relative to the size of the reward, so the impact of the reward will
-            # be low
+            # Also need to consider applying Q-value clipping to a realistic range based on knowledge and number of episodes
             
             # Train Q-network
             with tf.GradientTape() as tape:
@@ -120,8 +119,9 @@ class Agent:
                 logger.info(f"Training loss for epoch {e}: {loss}")
             
             grads = tape.gradient(loss, self.model.trainable_variables)
+            logger.info(f"Grad min: {tf.reduce_min(grads)}, Grad max: {tf.reduce_max(grads)}")
             self.optimizer.apply_gradients(zip(grads, self.model.trainable_variables))
-            
+
         # Decay epsilon
         self.epsilon = max(self.epsilon_min, self.epsilon * self.epsilon_decay)
         logger.info(f"New Epsilon: {self.epsilon}")

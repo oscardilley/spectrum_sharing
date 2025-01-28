@@ -153,7 +153,8 @@ class FullSimulator:
 
     def __call__(self, receivers, state, transmitters=None):
         """ Running an episode. """
-        blers = [] # can be used to estimate throughput
+        # NB: SINR in dB here, different to coverage maps
+        blers = [] # used to estimate throughput
         sinrs = []
         rates = []
         count = 0
@@ -169,7 +170,7 @@ class FullSimulator:
             for state in self.state:
                 logger.warning("Skipping calculation as all states are False.")
                 blers.append(tf.ones(self.num_rx, dtype=tf.float64))
-                sinrs.append(tf.constant(-1e5, shape=(self.num_rx), dtype=tf.float32))
+                sinrs.append(tf.constant(-1000, shape=(self.num_rx), dtype=tf.float32))
                 rates.append(tf.zeros(shape=(self.num_rx), dtype=tf.float32))
             results = {"bler": tf.stack(blers), "sinr": tf.stack(sinrs), "rate": tf.stack(rates)}
         
@@ -199,11 +200,11 @@ class FullSimulator:
         for state in self.state:
             if bool(state) is True:
                 blers.append(bler[count])
-                sinrs.append(tf.clip_by_value(sinr[count], -1e5, 1e5))
+                sinrs.append(tf.clip_by_value(sinr[count], -1000, 1000))
                 count += 1
             else:
                 blers.append(tf.ones(self.num_rx, dtype=tf.float64))
-                sinrs.append(tf.constant(-1e5, shape=(self.num_rx), dtype=tf.float32)) # SINR in dB so need to force to -inf
+                sinrs.append(tf.constant(-1000, shape=(self.num_rx), dtype=tf.float32)) # SINR in dB so need to force to -inf
 
         # Calculate the users achieving < 1 BLER to schedule  
         num_scheduled = tf.math.count_nonzero(tf.less(blers, 1)) # problem here when all achieve zero communication even with a transmitter on
@@ -215,14 +216,6 @@ class FullSimulator:
         time_step = (self.batch_size / self.simulator.pusch_config.carrier.num_slots_per_frame) * self.simulator.pusch_config.carrier.frame_duration
         max_rate_per_ue = max_data_sent_per_ue / time_step
         rates = [(1 - bler) * max_rate_per_ue for bler in blers]
-        
-        if (np.isnan(np.array(rates)).any()):
-            # Remove once bug fixed
-            logger.critical("Detected rates NAN")
-            logger.critical(f"Max rate: {max_rate_per_ue}")
-            logger.critical(f"BLERS: {blers}")
-            logger.critical(f"Rates: {rates}")
-            
 
         results = {"bler": tf.stack(blers), "sinr": tf.stack(sinrs), "rate": tf.stack(rates)}
 
