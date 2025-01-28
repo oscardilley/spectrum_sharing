@@ -52,6 +52,8 @@ class Agent:
             with open(self.path + "/saved_model.pb", "r"):
                 logger.warning("Loading existing model.")
             self.model, self.target_model = self.load_model()
+            self.epsilon = self.cfg.epsilon_quick_start # initalised epsilon to reduce exploration on pre-trained model
+            logger.warning(f"Epsilon initialised at {self.epsilon}")
         except FileNotFoundError:
             logger.warning("Starting new model.")
             self.model = self.build_model()
@@ -97,28 +99,34 @@ class Agent:
             return
         logger.info("Training.")
         
-        observations, actions, rewards, next_observations, terminateds = replay_buffer.sample(batch_size)
+        for e in range(self.cfg.training_epochs):
+            observations, actions, rewards, next_observations, terminateds = replay_buffer.sample(batch_size)
 
-        # Compute target Q-values using the Bellman equation:
-        next_qs = self.target_model.predict(next_observations, verbose=0)
-        max_next_qs = np.max(next_qs, axis=1)
-        target_qs = rewards + ((1 - terminateds) * self.gamma * max_next_qs)
-        
-        # Train Q-network
-        with tf.GradientTape() as tape:
-            q_values = self.model(observations, training=True)
-            indices = tf.stack([tf.range(batch_size), actions], axis=1)
-            selected_qs = tf.gather_nd(q_values, indices)
-            loss = self.loss_function(target_qs, selected_qs)
-        
-        grads = tape.gradient(loss, self.model.trainable_variables)
-        self.optimizer.apply_gradients(zip(grads, self.model.trainable_variables))
-        
+            # Compute target Q-values using the Bellman equation:
+            next_qs = self.target_model.predict(next_observations, verbose=0)
+            max_next_qs = np.max(next_qs, axis=1)
+            target_qs = rewards + ((1 - terminateds) * self.gamma * max_next_qs)
+
+            # Issue with training is going to be that the prediction using the target model
+            # is too large relative to the size of the reward, so the impact of the reward will
+            # be low
+            
+            # Train Q-network
+            with tf.GradientTape() as tape:
+                q_values = self.model(observations, training=True)
+                indices = tf.stack([tf.range(batch_size), actions], axis=1)
+                selected_qs = tf.gather_nd(q_values, indices)
+                loss = self.loss_function(target_qs, selected_qs)
+                logger.info(f"Training loss for epoch {e}: {loss}")
+            
+            grads = tape.gradient(loss, self.model.trainable_variables)
+            self.optimizer.apply_gradients(zip(grads, self.model.trainable_variables))
+            
         # Decay epsilon
         self.epsilon = max(self.epsilon_min, self.epsilon * self.epsilon_decay)
         logger.info(f"New Epsilon: {self.epsilon}")
 
-        if timestep % 33 == 0:
+        if timestep % int(self.cfg.step_limit) == 0:
             logger.info("Periodically saving model.")
             self.save_model()
         

@@ -28,7 +28,7 @@ def main(cfg):
                   action_space=env.action_space,
                   path=cfg.models_path)
     avg_reward_per_episode = [0.0 for e in range(int(cfg.episodes))]
-    min_reward_per_episode = [float('inf') for e in range(int(cfg.episodes))]
+    min_reward_per_episode = [10000 for e in range(int(cfg.episodes))]
     max_reward_per_episode = [0.0 for e in range(int(cfg.episodes))]
     avg_throughput_per_episode = [0.0 for e in range(int(cfg.episodes))]
     avg_pe_per_episode = [0.0 for e in range(int(cfg.episodes))]
@@ -60,8 +60,8 @@ def main(cfg):
 
             # Storing and plotting reward information
             avg_reward_per_episode[e] += reward / float(cfg.step_limit)
-            min_reward_per_episode[e] += min(reward, min_reward_per_episode[e])
-            max_reward_per_episode[e] += max(reward, max_reward_per_episode[e])
+            min_reward_per_episode[e] = min(reward, min_reward_per_episode[e])
+            max_reward_per_episode[e] = max(reward, max_reward_per_episode[e])
             avg_throughput_per_episode[e] += info["rewards"][0].numpy() / float(cfg.step_limit)
             avg_se_per_episode[e] += info["rewards"][1].numpy() / float(cfg.step_limit)
             avg_pe_per_episode[e] += info["rewards"][2].numpy() / float(cfg.step_limit)
