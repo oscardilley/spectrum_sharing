@@ -119,7 +119,6 @@ class Agent:
                 logger.info(f"Training loss for epoch {e}: {loss}")
             
             grads = tape.gradient(loss, self.model.trainable_variables)
-            logger.info(f"Grad min: {tf.reduce_min(grads)}, Grad max: {tf.reduce_max(grads)}")
             self.optimizer.apply_gradients(zip(grads, self.model.trainable_variables))
 
         # Decay epsilon
