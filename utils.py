@@ -34,7 +34,7 @@ def update_users(grid, num_users, users, max_move=2):
         start = users[f"ue{ue}"]["position"]
         valid_move = False
         while not valid_move:
-            move = tf.random.uniform(shape=(2,), minval=-1*max_move, maxval=max_move, dtype=tf.int64)
+            move = tf.random.uniform(shape=(2,), minval=-1*max_move, maxval=max_move+1, dtype=tf.int64)
             pos = start[0:2] + move
             if pos[1] >= x_max or pos[1] < 0:
                 continue

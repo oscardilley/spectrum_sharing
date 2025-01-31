@@ -1,13 +1,14 @@
 # Simulation
 episodes: 1000
 step_limit: 100
-random_seed: 42
+random_seed: 34
 
 # General
 max_results_length: 10 # for plotting
 images_path: "/home/ubuntu/spectrum_sharing/Simulations/"
 log_path: "/home/ubuntu/spectrum_sharing/Logging/"
 models_path: "/home/ubuntu/spectrum_sharing/Models/"
+test_models_path: "/home/ubuntu/spectrum_sharing/TestModels/"
 scene_path: "/home/ubuntu/spectrum_sharing/Scene/"
 
 # Scene and Sionna
@@ -24,12 +25,12 @@ cell_size: 3
 
 # Model and training
 training_batch_size: 50 # in timesteps
-training_epochs: 10
+training_epochs: 3
 target_network_update_freq: 10 # in episodes
 buffer_max_size: 1000000
 gamma: 0.9 # how is future reward prioritised
 epsilon_start: 1.0
-epsilon_quick_start: 0.75 # for a preloaded model
+epsilon_quick_start: 0.30 # for a preloaded model
 epsilon_min: 0.15
 epsilon_decay: 0.9995
 learning_rate: 0.0001

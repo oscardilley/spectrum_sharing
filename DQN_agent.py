@@ -12,7 +12,7 @@ import pickle
 from logger import logger
 
 class Agent:
-    def __init__(self, cfg, observation_space, action_space, path):
+    def __init__(self, cfg, observation_space, action_space, path, test=False):
         self.cfg = cfg
         self.observation_space = observation_space
         self.action_space = action_space
@@ -48,19 +48,27 @@ class Agent:
         self.learning_rate = self.cfg.learning_rate
         
         # Initialize the Q-network and target network
-        try:
+        if test:
+            # Testing the loaded network
             with open(self.path + "/saved_model.pb", "r"):
                 logger.warning("Loading existing model.")
             self.model, self.target_model = self.load_model()
-            self.epsilon = self.cfg.epsilon_quick_start # initalised epsilon to reduce exploration on pre-trained model
+            self.epsilon = 0.0 # zero exploration in test mode
             logger.warning(f"Epsilon initialised at {self.epsilon}")
-        except FileNotFoundError:
-            logger.warning("Starting new model.")
-            self.model = self.build_model()
-            self.target_model = self.build_model()
-        
-        self.optimizer = tf.keras.optimizers.Adam(learning_rate=self.learning_rate)
-        self.loss_function = tf.keras.losses.Huber(delta=5.0, reduction="sum_over_batch_size", name="huber_loss") # for balance between L1 and L2
+        else:
+            try:
+                with open(self.path + "/saved_model.pb", "r"):
+                    logger.warning("Loading existing model.")
+                self.model, self.target_model = self.load_model()
+                self.epsilon = self.cfg.epsilon_quick_start # initalised epsilon to reduce exploration on pre-trained model
+                logger.warning(f"Epsilon initialised at {self.epsilon}")
+            except FileNotFoundError:
+                logger.warning("Starting new model.")
+                self.model = self.build_model()
+                self.target_model = self.build_model()
+            
+            self.optimizer = tf.keras.optimizers.Adam(learning_rate=self.learning_rate)
+            self.loss_function = tf.keras.losses.Huber(delta=5.0, reduction="sum_over_batch_size", name="huber_loss") # for balance between L1 and L2
         
         # Synchronize the target network
         self.update_target_network()
