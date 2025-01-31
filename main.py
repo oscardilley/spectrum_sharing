@@ -26,6 +26,8 @@ def main(cfg):
     agent = Agent(cfg,
                   observation_space=env.observation_space,
                   action_space=env.action_space,
+                  possible_actions=env.possible_actions,
+                  num_possible_actions=env.num_actions,
                   path=cfg.models_path)
     avg_reward_per_episode = [0.0 for e in range(int(cfg.episodes))]
     min_reward_per_episode = [10000 for e in range(int(cfg.episodes))]

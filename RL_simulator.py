@@ -11,6 +11,7 @@ from hydra import compose, initialize
 import numpy as np
 import gymnasium as gym
 from gymnasium import spaces
+import itertools
 
 from plotting import plot_motion, plot_performance, plot_rewards
 from utils import update_users, get_throughput, get_spectral_efficiency, get_power_efficiency, get_spectrum_utility
@@ -36,29 +37,33 @@ class SionnaEnv(gym.Env):
         # Set up gym standard attributes
         self.truncated = False
         self.terminated = False # not used
-        transmitter_states = spaces.MultiBinary(len(self.transmitters)) # each transmitter has power and state (ON/OFF)
-        transmitter_powers = spaces.Discrete(n=10, start=25, seed=self.cfg.random_seed) # power in dBm  
-        self.action_space = spaces.Tuple((transmitter_states, transmitter_powers, transmitter_powers), seed=self.cfg.random_seed)     
+        on_off_action = spaces.Discrete(2, seed=self.cfg.random_seed) # 0 = OFF, 1 = ON
+        power_action = spaces.Discrete(3, seed=self.cfg.random_seed)  # 0 = decrease, 1 = stay, 2 = increase
+        self.action_space = gym.vector.utils.batch_space(spaces.Tuple((on_off_action, power_action)), self.num_tx)
+        single_tx_actions = list(itertools.product(
+            range(on_off_action.n),   # [0, 1] for ON/OFF
+            range(power_action.n)     # [0, 1, 2] for power actions
+        ))
+        self.possible_actions = list(itertools.product(single_tx_actions, single_tx_actions))
+        single_ue_observation = spaces.Dict({
+            "ue_pos": spaces.Box(low=0, high=1, shape=(2,), dtype=np.float32, seed=self.cfg.random_seed),
+            "ue_sinr": spaces.Box(low=0, high=1, shape=(1,), dtype=np.float32, seed=self.cfg.random_seed),
+            "ue_bler":spaces.Box(low=0, high=1, shape=(1,), dtype=np.float32, seed=self.cfg.random_seed),
+        })
+        self.num_actions = len(self.possible_actions)
+        tx_observation = spaces.Dict({
+            "tx_pos": spaces.Box(low=0, high=1, shape=(2,), dtype=np.float32, seed=self.cfg.random_seed),
+            "tx_power": spaces.Box(low=0, high=1, shape=(1,), dtype=np.float32, seed=self.cfg.random_seed),
+            "tx_state": spaces.Discrete(4, seed=self.cfg.random_seed),
+            "ues_primary": gym.vector.utils.batch_space(single_ue_observation, cfg.num_rx),
+            "ues_sharing": gym.vector.utils.batch_space(single_ue_observation, cfg.num_rx),
+        })
+        self.observation_space = gym.vector.utils.batch_space(tx_observation, self.num_tx)
+        print(self.observation_space.sample())
 
-        # Changes - use the transmitter power levels and state as observation inputs
-        # Reduce the action space size by changing to turn up/ turn down power and switch on/off - this will massively reduce the action size
-        # Implications - lots of logic changes need applying 
-        # Do I need to then take into account temporal relations
-        # Might need to apply dynamic masking e.g. for changing power levels of transmitters which are off
-        # this we can argue is more scalable
-
-
-
-        self.observation_space = spaces.Box(low=0,
-                                            high=1,
-                                            shape=(int(self.cfg.num_rx * (2 + self.num_tx + 1)),), # num_rx * (2 coords + num_tx primary + 1 sharing SINR)
-                                            dtype=np.float32
-                                        )
-        
         # Initialising the transmitters, ensuring atleast one transmitter is active
-        initial_action = self.action_space.sample()
-        self.sharing_state = tf.convert_to_tensor(initial_action[0], dtype=tf.bool)
-        self.power = tf.convert_to_tensor(self.action_space.sample()[1], dtype=tf.float32)
+        self.initial_action = self.action_space.sample()
+        self.sharing_state = tf.convert_to_tensor([bool(tx_action[0]) for tx_action in self.initial_action], dtype=tf.bool)
 
         for id, tx in enumerate(self.transmitters.values()):
             self.initial_states["PrimaryBand"+str(id)] = tf.cast(tf.one_hot(id, self.num_tx, dtype=tf.int16), dtype=tf.bool)
@@ -112,8 +117,7 @@ class SionnaEnv(gym.Env):
 
         # Resetting key attributes
         initial_action = self.action_space.sample()
-        self.sharing_state = tf.convert_to_tensor(initial_action[0], dtype=tf.bool)
-        self.power = tf.convert_to_tensor(self.action_space.sample()[1], dtype=tf.float32)
+        self.sharing_state = tf.convert_to_tensor([bool(tx_action[0]) for tx_action in self.initial_action], dtype=tf.bool)
         [primaryBand.reset() for primaryBand in self.primaryBands.values()]
         self.sharingBand.reset()
         grids = [primaryBand.grid for primaryBand in self.primaryBands.values()]
@@ -129,12 +133,25 @@ class SionnaEnv(gym.Env):
 
     def step(self, action):
         """ Step through the environment. """
-        self.sharing_state = tf.convert_to_tensor(action[0], dtype=tf.bool)
-        self.power = tf.convert_to_tensor(action[1:], dtype=tf.float32)
+        self.sharing_state = tf.convert_to_tensor([bool(tx_action[0]) for tx_action in action], dtype=tf.bool) # action in (array(tx_0_on/off, tx_0_power_decrease/stay/increase) for tx in transmitters)
 
         # Updating the transmitters
         for id, tx in enumerate(self.transmitters.values()):
-            tx["sharing_power"] = int(self.power[id])
+            match action[tx][1]:
+                # Applying actions - restriction of actions is handled through masking in the Q-network
+                case 0:
+                    tx["sharing_power"] = tx["sharing_power"] - 1
+                case 1:
+                    pass
+                case 2:
+                    tx["sharing_power"] = tx["sharing_power"] + 1
+                case _:
+                    logger.critical("Invalid action.")
+                    raise ValueError("Invalid action.")
+            
+            if (tx["sharing_power"] > tx["max_power"]) or (tx["sharing_power"] < tx["min_power"]):
+                logger.critical("Out of power range, this should not be possible if masking is properly applied.")
+                raise ValueError("Out of power range.")
 
         # Generating the initial user positions based on logical OR of validity matrices
         if self.timestep > 0:
@@ -202,25 +219,69 @@ class SionnaEnv(gym.Env):
         # returns the 5-tuple (observation, reward, terminated, truncated, info)
         return self._get_obs(), reward, self.terminated, self.truncated, {"rewards": norm_updates}
 
-
     def _get_obs(self):
         """ Getting the data for the current state. """
          # Adding normalised values to the state array
         state = []
-        for user in self.users.values():
-            x = user["position"][1]  # x position
-            y = user["position"][0]  # y position
 
-            norm_x = self._norm(tf.cast(x, tf.float32), 0, self.valid_area.shape[1])
-            norm_y = self._norm(tf.cast(y, tf.float32), 0, self.valid_area.shape[0])
+        # Iterate over each transmitter
+        for tx_id, tx in self.transmitters.items():
+            # Normalize transmitter position
+            norm_tx_x = self._norm(tx["position"][1], 0, self.valid_area.shape[1])
+            norm_tx_y = self._norm(tx["position"][0], 0, self.valid_area.shape[0])
 
-            # Converting to dB as well as extracting and normalising
-            primary_sinrs = [self._norm((10*(tf.math.log(primary_sinr[[0]][y][x]) / tf.math.log(10.0))), -100, 100) for primary_sinr in self.primary_sinr_maps]
-            sharing_sinr = [self._norm((10*(tf.math.log(self.sharing_sinr_map[0][y][x]) / tf.math.log(10.0))), -100, 100)]
+            # Normalize power level (assuming min/max power are defined)
+            norm_tx_power = self._norm(tx["power"], self.cfg.min_power, self.cfg.max_power)
 
-            state.extend([norm_x, norm_y] + primary_sinrs + sharing_sinr)
+            tx_on_off = int(tx["state"]) 
 
-        return tf.convert_to_tensor(state, dtype=tf.float32)
+            # Primary and sharing UEs
+            primary_ues = []
+            sharing_ues = []
+
+            for user in self.users.values():
+                x = user["position"][1]
+                y = user["position"][0]
+
+                norm_x = self._norm(x, 0, self.valid_area.shape[1])
+                norm_y = self._norm(y, 0, self.valid_area.shape[0])
+
+                # Convert SINR to dB and normalize
+                primary_sinr = [self._norm((10 * tf.math.log(self.primary_sinr_maps[tx_id][0][y][x]) / tf.math.log(10.0)), -100, 100)]
+                sharing_sinr = [self._norm((10 * tf.math.log(self.sharing_sinr_map[tx_id][y][x]) / tf.math.log(10.0)), -100, 100)]
+
+                # Normalize BLER (assuming 0-1 range)
+                norm_bler = self._norm(user["bler"], 0, 1)
+
+                # Construct UE observation dictionary
+                prim = {
+                    "ue_pos": [norm_x, norm_y],
+                    "ue_sinr": primary_sinr,
+                    "ue_bler": [norm_bler],
+                }
+                shar = {
+                    "ue_pos": [norm_x, norm_y],
+                    "ue_sinr": sharing_sinr,
+                    "ue_bler": [norm_bler],
+                }
+
+                primary_ues.append(prim)
+                sharing_ues.append(shar)
+
+            # Construct transmitter observation dictionary
+            tx_obs = {
+                "tx_pos": [norm_tx_x, norm_tx_y],
+                "tx_power": [norm_tx_power],
+                "tx_state": tx_on_off,
+                "ues_primary": primary_ues,
+                "ues_sharing": sharing_ues,
+            }
+
+            state.append(tx_obs)
+
+            print(state)
+
+        return state
     
     def _norm(self, value, min_val, max_val):
         """Min Max Normalisation of value to range [0,1] given a range. """

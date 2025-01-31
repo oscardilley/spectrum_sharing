@@ -12,33 +12,18 @@ import pickle
 from logger import logger
 
 class Agent:
-    def __init__(self, cfg, observation_space, action_space, path, test=False):
+    def __init__(self, cfg, observation_space, action_space, possible_actions, num_possible_actions, path, test=False):
         self.cfg = cfg
         self.observation_space = observation_space
         self.action_space = action_space
-        self.observation_shape = list(self.observation_space.shape)[0]
+
         self.path = path + "model" # add .h5 to switch to H5 saved model format
 
-        # Preprocessing actions
-        if hasattr(self.action_space, 'spaces'):  # Tuple space
-            # Enumerate all possible actions for discrete sub-spaces
-            actions=[]
-            sub_spaces=self.action_space.spaces
-            if all(hasattr(sub_space, 'n') for sub_space in sub_spaces):
-                for sub_space in sub_spaces:
-                    if isinstance(sub_space, gym.spaces.MultiBinary):
-                        num_actions = range(2**sub_space.n)
-                        actions.append([np.array([int(bit) for bit in np.binary_repr(i, sub_space.n)], dtype=np.int8) for i in num_actions])
-                    elif isinstance(sub_space, gym.spaces.Discrete):
-                        actions.append(range(sub_space.start, sub_space.start + sub_space.n))
-                    else:
-                        raise ValueError("Unsupported Space.")
-                    self.actions = list(product(*actions))
-                    self.num_actions = len(self.actions)
-            else:
-                raise ValueError("Unsupported action space: contains non-discrete sub-spaces.")
-        else:
-                raise ValueError("Action space not yet supported.")
+        print(self.observation_space)
+
+        # Obtaining preprocessed actions
+        self.actions = possible_actions
+        self.num_actions = num_possible_actions
 
         # Hyperparameters
         self.gamma = self.cfg.gamma
@@ -80,7 +65,7 @@ class Agent:
             tf.keras.layers.Dense(128, activation='relu'),
             tf.keras.layers.Dense(128, activation='relu'),
             tf.keras.layers.Dense(128, activation='relu'),
-            tf.keras.layers.Dense(self.num_actions, activation='linear')
+            tf.keras.layers.Dense(self.num_actions, activation='relu') # relu instead of 'linear' for case that Q values cannot be negative
         ])
         
         return model
@@ -97,6 +82,9 @@ class Agent:
             return self.actions[idx], idx
         else:
             q_values = self.model.predict(observation[np.newaxis], verbose=0) # add extra axis for batch
+
+            # consider discouraging the selection of the same action again
+
             logger.info(f"Q-values: Mean={np.mean(q_values)}, Max={np.max(q_values)}, Min={np.min(q_values)}")
             idx = np.argmax(q_values[0])
             logger.info("Q Action.")

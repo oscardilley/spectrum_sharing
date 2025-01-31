@@ -35,6 +35,10 @@ epsilon_min: 0.15
 epsilon_decay: 0.9995
 learning_rate: 0.0001
 
+# For normalisation etc.
+min_power: 15.0 # in dBm
+max_power: 50.0
+
 # Transmitters
 transmitters:
     tx0:
@@ -45,6 +49,9 @@ transmitters:
         color: [1, 0, 0]
         primary_power: 17.0
         sharing_power: 17.0
+        min_power: 17.0
+        max_power: 23.0
+        state: 0
         look_at: [-30, 23, 10]
         mu_pa: 0.4
         primary_carrier_freq: 4145e6
@@ -57,6 +64,9 @@ transmitters:
         color: [1, 0, 0]
         primary_power: 25.0
         sharing_power: 25.0
+        min_power: 20.0
+        max_power: 30.0
+        state: 0
         look_at: [32, 0, 10]
         mu_pa: 0.5
         primary_carrier_freq: 3425e6
