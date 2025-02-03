@@ -7,19 +7,20 @@ from collections import deque
 import numpy as np
 from itertools import product
 import gymnasium as gym
+from gymnasium import spaces
 import pickle
 
 from logger import logger
 
 class Agent:
-    def __init__(self, cfg, observation_space, action_space, possible_actions, num_possible_actions, path, test=False):
+    def __init__(self, cfg, observation_space, num_tx, action_space, possible_actions, num_possible_actions, path, test=False):
         self.cfg = cfg
+        self.transmitters = dict(self.cfg.transmitters)
+        self.num_tx = num_tx
         self.observation_space = observation_space
         self.action_space = action_space
 
         self.path = path + "model" # add .h5 to switch to H5 saved model format
-
-        print(self.observation_space)
 
         # Obtaining preprocessed actions
         self.actions = possible_actions
@@ -60,15 +61,39 @@ class Agent:
     
     def build_model(self):
         """Build the Q-network."""
-        model = tf.keras.Sequential([
-            tf.keras.layers.Input(shape=self.observation_shape),
-            tf.keras.layers.Dense(128, activation='relu'),
-            tf.keras.layers.Dense(128, activation='relu'),
-            tf.keras.layers.Dense(128, activation='relu'),
-            tf.keras.layers.Dense(self.num_actions, activation='relu') # relu instead of 'linear' for case that Q values cannot be negative
-        ])
+        transmitter_heads = []
+        processed_features = []
+
+        for tx in range(self.num_tx):
+            tx_input = tf.keras.layers.Input(shape=int(spaces.utils.flatdim(self.observation_space) / self.num_tx), name=f"tx_{tx}")
+            transmitter_heads.append(tx_input)
+            # Feature extraction per transmitter
+            x = tf.keras.layers.Dense(128, activation='relu')(tx_input)
+            x = tf.keras.layers.Dense(128, activation='relu')(x)
+            processed_features.append(x)
+
+        # Concatenate extracted features from all transmitters
+        merged_features = tf.keras.layers.Concatenate()(processed_features)
         
+        # Shared decision layers
+        shared = tf.keras.layers.Dense(self.num_tx * 128, activation='relu')(merged_features)
+        shared = tf.keras.layers.Dense(128, activation='relu')(shared)
+
+        # Single output head predicting Q-values for all possible actions
+        output = tf.keras.layers.Dense(self.num_actions, activation='relu')(shared)
+        model = tf.keras.Model(inputs=transmitter_heads, outputs=output)
+
         return model
+    
+    def _preprocess_observation(self, observation):
+        """Convert the nested observation dict into a list of flattened arrays for each transmitter."""
+        processed_inputs = []
+        
+        for tx_id in range(self.num_tx):
+            flattened = spaces.utils.flatten(self.observation_space[tx_id], observation[tx_id])
+            processed_inputs.append(flattened) 
+        
+        return processed_inputs
 
     def update_target_network(self):
         """Synchronize target network with main network."""
@@ -76,19 +101,45 @@ class Agent:
     
     def act(self, observation):
         """Select an action using epsilon-greedy strategy."""
+        valid_mask = self.get_valid_action_mask(observation)  # producing the action mask
+
         if np.random.rand() <= self.epsilon: # decaying epsilon
-            idx = np.random.choice(len(self.actions))
-            logger.info("Random Action.")
+            valid_indices= np.where(valid_mask)[0]
+            idx = np.random.choice(valid_indices)
+            logger.info("Masked Random Action.")
             return self.actions[idx], idx
         else:
-            q_values = self.model.predict(observation[np.newaxis], verbose=0) # add extra axis for batch
-
-            # consider discouraging the selection of the same action again
+            # Predicting q-values and then masking them
+            observation = [obs[np.newaxis] for obs in self._preprocess_observation(observation)] # for tf batch dimension, using [np.newaxis]
+            q_values = self.model.predict(observation, verbose=0) # add extra axis for batch
+            q_values = np.where(valid_mask, q_values, 0) # if valid, return the q value, else return zero
 
             logger.info(f"Q-values: Mean={np.mean(q_values)}, Max={np.max(q_values)}, Min={np.min(q_values)}")
             idx = np.argmax(q_values[0])
-            logger.info("Q Action.")
+            logger.info(f"Q Action {self.actions[idx]}.")
+
             return self.actions[idx], idx
+        
+    def get_valid_action_mask(self, observation):
+        """Create a mask for valid actions based on the power constraints."""
+        valid_mask = np.ones(self.num_actions, dtype=bool)  # Start with all valid
+
+        for id, action in enumerate(self.actions):
+            for tx_id, tx in enumerate(action):
+                power = round((float(observation[tx_id]["tx_power"][0]) * (self.cfg.max_power - self.cfg.min_power)) + self.cfg.min_power) # denormalising
+                if tx[1] != 1:
+                    if tx[0] == 0:
+                         valid_mask[id] = 0 # power is only allowed to stay the same if turning transmitter off
+                         continue
+                    power = round((float(observation[tx_id]["tx_power"][0]) * (self.cfg.max_power - self.cfg.min_power)) + self.cfg.min_power) # denormalising
+                    if (tx[1] == 2 and power == self.transmitters[f"tx{tx_id}"]["max_power"]) or (tx[1] == 0 and power == self.transmitters[f"tx{tx_id}"]["min_power"]):
+                        logger.warning(f"Dynamic masking to avoid exceding power ({power}) constrint. Tx {tx_id}, Action {id}: {action}.")
+                        valid_mask[id] = 0 # do not increase or decrease power beyond transmitter limit
+                        continue
+                else:
+                    continue
+
+        return valid_mask
     
     def train(self, replay_buffer, batch_size, timestep):
         """Train the Q-network using experience from the replay buffer."""
@@ -99,12 +150,20 @@ class Agent:
         for e in range(self.cfg.training_epochs):
             observations, actions, rewards, next_observations, terminateds = replay_buffer.sample(batch_size)
 
+            # Preprocess all observations in the batch
+            processed_obs = [self._preprocess_observation(obs) for obs in observations]
+            processed_next_obs = [self._preprocess_observation(obs) for obs in next_observations]
+            
+            # Reshape the processed observations to match the model's input format
+            valid_mask = np.array([self.get_valid_action_mask(next_observation) for next_observation in next_observations])
+            observations = [np.stack([obs[i] for obs in processed_obs]) for i in range(self.num_tx)]
+            next_observations = [np.stack([obs[i] for obs in processed_next_obs]) for i in range(self.num_tx)]
+
             # Compute target Q-values using the Bellman equation:
             next_qs = self.target_model.predict(next_observations, verbose=0)
+            next_qs = np.where(valid_mask, next_qs, 0)
             max_next_qs = np.max(next_qs, axis=1)
             target_qs = rewards + ((1 - terminateds) * self.gamma * max_next_qs)
-
-            # Also need to consider applying Q-value clipping to a realistic range based on knowledge and number of episodes
             
             # Train Q-network
             with tf.GradientTape() as tape:

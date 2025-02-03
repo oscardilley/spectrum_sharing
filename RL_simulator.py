@@ -55,11 +55,10 @@ class SionnaEnv(gym.Env):
             "tx_pos": spaces.Box(low=0, high=1, shape=(2,), dtype=np.float32, seed=self.cfg.random_seed),
             "tx_power": spaces.Box(low=0, high=1, shape=(1,), dtype=np.float32, seed=self.cfg.random_seed),
             "tx_state": spaces.Discrete(4, seed=self.cfg.random_seed),
-            "ues_primary": gym.vector.utils.batch_space(single_ue_observation, cfg.num_rx),
-            "ues_sharing": gym.vector.utils.batch_space(single_ue_observation, cfg.num_rx),
+            "ues_primary": spaces.Tuple((single_ue_observation for _ in range(cfg.num_rx)), seed=cfg.random_seed),
+            "ues_sharing": spaces.Tuple((single_ue_observation for _ in range(cfg.num_rx)), seed=cfg.random_seed),
         })
-        self.observation_space = gym.vector.utils.batch_space(tx_observation, self.num_tx)
-        print(self.observation_space.sample())
+        self.observation_space = spaces.Tuple((tx_observation for _ in range(self.num_tx)), seed=self.cfg.random_seed)
 
         # Initialising the transmitters, ensuring atleast one transmitter is active
         self.initial_action = self.action_space.sample()
@@ -108,6 +107,7 @@ class SionnaEnv(gym.Env):
         self.timestep = 0
         self.users={}
         self.performance=[]
+        self.rates = None
         self.fig_0 = None
         self.ax_0 = None
         self.primary_figs = [None for _ in range(self.num_tx)]
@@ -137,7 +137,7 @@ class SionnaEnv(gym.Env):
 
         # Updating the transmitters
         for id, tx in enumerate(self.transmitters.values()):
-            match action[tx][1]:
+            match action[id][1]:
                 # Applying actions - restriction of actions is handled through masking in the Q-network
                 case 0:
                     tx["sharing_power"] = tx["sharing_power"] - 1
@@ -152,6 +152,7 @@ class SionnaEnv(gym.Env):
             if (tx["sharing_power"] > tx["max_power"]) or (tx["sharing_power"] < tx["min_power"]):
                 logger.critical("Out of power range, this should not be possible if masking is properly applied.")
                 raise ValueError("Out of power range.")
+            tx["state"] = action[id][0] # updating the stored state value
 
         # Generating the initial user positions based on logical OR of validity matrices
         if self.timestep > 0:
@@ -171,8 +172,8 @@ class SionnaEnv(gym.Env):
         self.performance.append({"Primary": primaryOutput, "Sharing": sharingOutput})
 
         # Calculating rewards
-        rates = tf.stack([primaryOutput["rate"] for primaryOutput in primaryOutputs] + sharingOutput["rate"])
-        throughput, per_ue_throughput, per_ap_per_band_throughput = get_throughput(rates)
+        self.rates = tf.stack([primaryOutput["rate"] for primaryOutput in primaryOutputs] + sharingOutput["rate"])
+        throughput, per_ue_throughput, per_ap_per_band_throughput = get_throughput(self.rates)
 
         primary_power = tf.convert_to_tensor(np.power(10, (np.array([tx["primary_power"] for tx in self.transmitters.values()]) - 30) / 10), dtype=tf.float32)
         sharing_power = tf.convert_to_tensor(np.power(10, (np.array([tx["sharing_power"] for tx in self.transmitters.values()]) - 30) / 10), dtype=tf.float32)
@@ -225,13 +226,13 @@ class SionnaEnv(gym.Env):
         state = []
 
         # Iterate over each transmitter
-        for tx_id, tx in self.transmitters.items():
+        for tx_id, tx in enumerate(self.transmitters.values()):
             # Normalize transmitter position
             norm_tx_x = self._norm(tx["position"][1], 0, self.valid_area.shape[1])
             norm_tx_y = self._norm(tx["position"][0], 0, self.valid_area.shape[0])
 
             # Normalize power level (assuming min/max power are defined)
-            norm_tx_power = self._norm(tx["power"], self.cfg.min_power, self.cfg.max_power)
+            norm_tx_power = self._norm(tx["sharing_power"], self.cfg.min_power, self.cfg.max_power)
 
             tx_on_off = int(tx["state"]) 
 
@@ -239,30 +240,37 @@ class SionnaEnv(gym.Env):
             primary_ues = []
             sharing_ues = []
 
-            for user in self.users.values():
-                x = user["position"][1]
-                y = user["position"][0]
+            for user_id, user in enumerate(self.users.values()):
+                x = user["position"][1].numpy()
+                y = user["position"][0].numpy()
 
                 norm_x = self._norm(x, 0, self.valid_area.shape[1])
                 norm_y = self._norm(y, 0, self.valid_area.shape[0])
 
                 # Convert SINR to dB and normalize
-                primary_sinr = [self._norm((10 * tf.math.log(self.primary_sinr_maps[tx_id][0][y][x]) / tf.math.log(10.0)), -100, 100)]
-                sharing_sinr = [self._norm((10 * tf.math.log(self.sharing_sinr_map[tx_id][y][x]) / tf.math.log(10.0)), -100, 100)]
+                primary_sinr = [self._norm((10 * tf.math.log(self.primary_sinr_maps[tx_id][0][y][x]) / tf.math.log(10.0)).numpy(), -100, 100)]
+                if tx_on_off == 0:
+                    sharing_sinr = [self._norm((10 * tf.math.log(0.0) / tf.math.log(10.0)).numpy(), -100, 100)]
+                else:
+                    index = min(self.sharing_sinr_map.shape[0] - 1, tx_id)
+                    sharing_sinr = [self._norm((10 * tf.math.log(self.sharing_sinr_map[index][y][x]) / tf.math.log(10.0)).numpy(), -100, 100)]
 
                 # Normalize BLER (assuming 0-1 range)
-                norm_bler = self._norm(user["bler"], 0, 1)
+                if self.rates is None:
+                    norm_bler = self._norm(1, 0, 1)
+                else:
+                    norm_bler = self._norm(tf.reduce_sum(self.rates[tx_id,:,user_id]).numpy(), 0, 1)
 
                 # Construct UE observation dictionary
                 prim = {
-                    "ue_pos": [norm_x, norm_y],
-                    "ue_sinr": primary_sinr,
-                    "ue_bler": [norm_bler],
+                    "ue_pos": np.array([norm_x, norm_y]),
+                    "ue_sinr": np.array(primary_sinr),
+                    "ue_bler": np.array(norm_bler),
                 }
                 shar = {
-                    "ue_pos": [norm_x, norm_y],
-                    "ue_sinr": sharing_sinr,
-                    "ue_bler": [norm_bler],
+                    "ue_pos":  np.array([norm_x, norm_y]),
+                    "ue_sinr":  np.array(sharing_sinr),
+                    "ue_bler": np.array(norm_bler),
                 }
 
                 primary_ues.append(prim)
@@ -270,8 +278,8 @@ class SionnaEnv(gym.Env):
 
             # Construct transmitter observation dictionary
             tx_obs = {
-                "tx_pos": [norm_tx_x, norm_tx_y],
-                "tx_power": [norm_tx_power],
+                "tx_pos": np.array([norm_tx_x, norm_tx_y]),
+                "tx_power": np.array([norm_tx_power]),
                 "tx_state": tx_on_off,
                 "ues_primary": primary_ues,
                 "ues_sharing": sharing_ues,
@@ -279,7 +287,7 @@ class SionnaEnv(gym.Env):
 
             state.append(tx_obs)
 
-            print(state)
+# Need to fix either the state or the get_obs for how the bler, sinr etc are added
 
         return state
     

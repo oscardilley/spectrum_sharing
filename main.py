@@ -24,6 +24,7 @@ def main(cfg):
     env = SionnaEnv(cfg)
     buffer = ReplayBuffer(cfg.buffer_max_size, cfg.log_path)
     agent = Agent(cfg,
+                  num_tx=len(cfg.transmitters),
                   observation_space=env.observation_space,
                   action_space=env.action_space,
                   possible_actions=env.possible_actions,
