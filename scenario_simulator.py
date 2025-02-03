@@ -5,7 +5,7 @@ For iterating through episodes of Sionna simulations.
 """
 
 import tensorflow as tf
-from sionna.rt import load_scene, PlanarArray, Transmitter, Receiver
+from sionna.rt import load_scene, PlanarArray, Transmitter, Receiver, Camera
 import numpy as np
 
 from channel_simulator import ChannelSimulator
@@ -81,6 +81,8 @@ class FullSimulator:
     def _create_scene(self):
         """ Creating the simulation scene, only called once during intialisation."""
         sn = load_scene(self.scene_name)
+        sn.add(Camera("cam", position=[25,-300,150], look_at=[0,0,0]))
+
         sn.synthetic_array=True # False = ray tracing done per antenna element
         sn.frequency = self.carrier_frequency
         sn.bandwidth = self.bandwidth
@@ -218,6 +220,20 @@ class FullSimulator:
         rates = [(1 - bler) * max_rate_per_ue for bler in blers]
 
         results = {"bler": tf.stack(blers), "sinr": tf.stack(sinrs), "rate": tf.stack(rates)}
+
+        # Saving the camera plot:
+        self.scene.render_to_file(camera="cam",
+                                  filename="/home/ubuntu/spectrum_sharing/Simulations/"+"Camera.png",
+                                  paths=paths,
+                                  show_paths=True,
+                                  show_devices=True,
+                                  #coverage_map=self.cm,
+                                  cm_db_scale=True,
+                                  cm_vmin=-100,
+                                  cm_vmax=100,
+                                  resolution=[1080,720],
+                                  fov=55)
+                                
 
         return results
 

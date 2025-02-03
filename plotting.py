@@ -113,7 +113,7 @@ def plot_motion(step,
         ax.set_ylim([0, y_max])
 
         ax.scatter(
-                    tx_x_positions, tx_y_positions, s=250, c="r", marker="*"
+                    tx_x_positions, tx_y_positions, s=500, c="r", marker="*"
                   )
 
     else:
@@ -127,7 +127,7 @@ def plot_motion(step,
     map = ax.imshow(cm_db, cmap=color, origin='lower', alpha=0.7, extent=[0, x_max, 0, y_max], vmin=-100, vmax=100)
     if step == 0:
         cbar = fig.colorbar(map, ax=ax, shrink=0.8)
-        cbar.set_label("SINR [dB]", fontsize=16) 
+        cbar.set_label("SINR [dB]", fontsize=30) 
     grid = grid.numpy()
     ax.imshow(np.ma.masked_where(grid > 0, grid), cmap='Set2', origin='lower', alpha=0.6, extent=[0, x_max, 0, y_max])
 
@@ -135,7 +135,7 @@ def plot_motion(step,
     ax.quiver(
         x_positions, y_positions,  # Start positions of the arrows
         dx, dy,  # Vector components
-        angles='xy', scale_units='xy', scale=1.5, label='Direction'
+        angles='xy', scale_units='xy', scale=3, label='Direction'
     )
 
     # Labels and title

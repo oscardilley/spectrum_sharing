@@ -9,7 +9,7 @@ images_path: "/home/ubuntu/spectrum_sharing/Simulations/"
 log_path: "/home/ubuntu/spectrum_sharing/Logging/"
 models_path: "/home/ubuntu/spectrum_sharing/Models/"
 test_models_path: "/home/ubuntu/spectrum_sharing/TestModels/"
-scene_path: "/home/ubuntu/spectrum_sharing/Scene/BRISTOL_2/"
+scene_path: "/home/ubuntu/spectrum_sharing/Scene/BRISTOL_3/"
 
 # Scene and Sionna
 num_rx: 20
@@ -21,7 +21,7 @@ primary_fft_size: 120 # needs to be a power of 12RBs - will be rounded to power 
 sharing_fft_size: 324
 batch_size: 1000 # also corresponds to time between episodes when subcarrier_spacing is considered
 ebno_db: 2.0
-cell_size: 3
+cell_size: 2
 
 # Model and training
 training_batch_size: 32 # in timesteps
@@ -43,7 +43,7 @@ max_power: 50.0
 transmitters:
     tx0:
         name: "tx0"
-        position: [-16, 23, 25] # transmitter and receiver structure needs to be the same - may need to include Doppler
+        position: [-53,17, 25] # transmitter and receiver structure needs to be the same - may need to include Doppler
         direction: [0, 0, 0]
         orientation: [0, 0, 0]
         color: [1, 0, 0]
@@ -58,7 +58,7 @@ transmitters:
 
     tx1:
         name: "tx1"
-        position: [32, 10, 21]
+        position: [63, -25, 21]
         direction: [0, 0, 0]
         orientation: [0, 0, 0]
         color: [1, 0, 0]
