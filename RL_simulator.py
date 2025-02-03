@@ -67,7 +67,7 @@ class SionnaEnv(gym.Env):
         for id, tx in enumerate(self.transmitters.values()):
             self.initial_states["PrimaryBand"+str(id)] = tf.cast(tf.one_hot(id, self.num_tx, dtype=tf.int16), dtype=tf.bool)
             self.primaryBands["PrimaryBand"+str(id)] = FullSimulator(prefix="primary",
-                                                                     scene_name=sionna.rt.scene.simple_street_canyon,
+                                                                     scene_name= cfg.scene_path + "simple_OSM_scene.xml", #sionna.rt.scene.simple_street_canyon,
                                                                      carrier_frequency=tx["primary_carrier_freq"],
                                                                      bandwidth=self.primary_bandwidth,
                                                                      pmax=50, # maximum power
@@ -83,7 +83,7 @@ class SionnaEnv(gym.Env):
             
         # Setting up the sharing band
         self.sharingBand = FullSimulator(prefix="sharing",
-                                    scene_name=sionna.rt.scene.simple_street_canyon,
+                                    scene_name=cfg.scene_path + "simple_OSM_scene.xml",
                                     carrier_frequency=self.cfg.sharing_carrier_freq,
                                     bandwidth=self.sharing_bandwidth,
                                     pmax=50, # maximum power
