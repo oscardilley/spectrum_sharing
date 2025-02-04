@@ -58,7 +58,7 @@ transmitters:
 
     tx1:
         name: "tx1"
-        position: [-74, 126, 15]
+        position: [-73, 126, 17]
         direction: [0, 0, 0]
         orientation: [0, 0, 0]
         color: [1, 0, 0]
