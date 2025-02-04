@@ -21,7 +21,7 @@ def plot_total_rewards(episode,
     """ Plot reward functions over time."""
     # Axis initialisation
     labels = ["Normalised Average Reward", "Normalised Reward Min", "Normalised Reward Max", "Normalised Total Throughput", "Normalised Spectral Efficiency", "Normalised Power Efficiency", "Normalised Spectrum Utility"]
-    fig, ax = plt.subplots(1, 1, figsize=(10,7))#, constrained_layout=True)
+    fig, ax = plt.subplots(1, 1, figsize=(10,7), constrained_layout=True)
     cmap = plt.get_cmap("tab10", len(labels) - 1) # plot the metrics in consistent colours and the total in black
 
     upper_x = episode + 1
@@ -98,8 +98,8 @@ def plot_motion(step,
     dy = [ue["direction"][0] for ue in users.values()]
 
     # Transmitters - positions adjusted to cm coordinate system
-    tx_x_positions = [transmitter["position"][0]/cell_size + (x_max/2) + 0.5 for transmitter in transmitters.values()]
-    tx_y_positions = [transmitter["position"][1]/cell_size + (y_max/2) + 0.5 for transmitter in transmitters.values()]
+    tx_x_positions = [transmitter["position"][0]/cell_size + (x_max/cell_size) for transmitter in transmitters.values()]
+    tx_y_positions = [transmitter["position"][1]/cell_size + (y_max/cell_size) for transmitter in transmitters.values()]
 
     # Axis initialisation
     if ax is None or fig is None:
@@ -108,12 +108,13 @@ def plot_motion(step,
         # Add gridlines and lims
         ax.set_xticks(np.arange(x_max), minor=True)
         ax.set_yticks(np.arange(y_max), minor=True)
+        ax.tick_params(which='major', size=25, labelsize=25)
         ax.tick_params(which='minor', size=0)  # Remove tick markers for minor grid lines
         ax.set_xlim([0, x_max])
         ax.set_ylim([0, y_max])
 
         ax.scatter(
-                    tx_x_positions, tx_y_positions, s=500, c="r", marker="*"
+                    tx_x_positions, tx_y_positions, s=1000, c="r", marker="*"
                   )
 
     else:
@@ -127,7 +128,8 @@ def plot_motion(step,
     map = ax.imshow(cm_db, cmap=color, origin='lower', alpha=0.7, extent=[0, x_max, 0, y_max], vmin=-100, vmax=100)
     if step == 0:
         cbar = fig.colorbar(map, ax=ax, shrink=0.8)
-        cbar.set_label("SINR [dB]", fontsize=30) 
+        cbar.set_label("SINR [dB]", fontsize=40) 
+        cbar.ax.tick_params(labelsize=30)
     grid = grid.numpy()
     ax.imshow(np.ma.masked_where(grid > 0, grid), cmap='Set2', origin='lower', alpha=0.6, extent=[0, x_max, 0, y_max])
 
@@ -135,14 +137,14 @@ def plot_motion(step,
     ax.quiver(
         x_positions, y_positions,  # Start positions of the arrows
         dx, dy,  # Vector components
-        angles='xy', scale_units='xy', scale=3, label='Direction'
+        angles='xy', scale_units='xy', scale=5, label='Direction'
     )
 
     # Labels and title
-    ax.set_title(f"\n{id} Step {step}\n", fontsize=25)
-    ax.set_xlabel("X [Cells]", fontsize=16)
-    ax.set_ylabel("Y [Cells]", fontsize=16)
-    ax.legend()
+    ax.set_title(f"\n{id} Step {step}\n", fontsize=70)
+    ax.set_xlabel("X [Cells]", fontsize=40)
+    ax.set_ylabel("Y [Cells]", fontsize=40)
+    ax.legend(fontsize=30)
     
     if id == "Sharing Band, Max SINR":
         fig.savefig(save_path + f"Scene {id} Step{step}.png")
@@ -150,7 +152,7 @@ def plot_motion(step,
         fig.savefig(save_path + f"Scene {id}.png")#, bbox_inches="tight")
 
     for i in range(len(users)):
-        ax.plot([x_positions[i], x_positions[i] + dx[i]], [y_positions[i], y_positions[i] + dy[i]], color=cmap(i), linewidth=2.5)
+        ax.plot([x_positions[i], x_positions[i] + dx[i]], [y_positions[i], y_positions[i] + dy[i]], color=cmap(i), linewidth=4)
 
     return fig, ax
 

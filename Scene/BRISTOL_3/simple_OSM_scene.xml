@@ -8,7 +8,7 @@
     </integrator>
     <bsdf type="twosided" id="mat-itu_concrete">
         <bsdf type="diffuse">
-            <rgb value="0.539479 0.539479 0.53948" name="reflectance"/>
+            <rgb value="0.55 0.53 0.53" name="reflectance"/>
         </bsdf>
     </bsdf>
     <bsdf type="twosided" id="mat-itu_marble">
@@ -28,7 +28,7 @@
     </bsdf>
     <bsdf type="twosided" id="mat-itu_wet_ground">
         <bsdf type="diffuse">
-            <rgb value="0.91 0.569 0.055" name="reflectance"/>
+            <rgb value="0.65 0.65 0.65" name="reflectance"/>
         </bsdf>
     </bsdf>
     <emitter type="constant" id="World">
@@ -55,6 +55,10 @@
             <integer name="height" value="$resy"/>
         </film>
     </sensor>
+    <shape type="obj">
+        <string name="filename" value="Scene/ground_plane.obj"/>
+        <ref id="mat-itu_wet_ground" name="bsdf"/>
+    </shape>
     <shape type="ply" id="mesh-ground">
         <string name="filename" value="Scene/BRISTOL_3/mesh/ground.ply"/>
         <ref id="mat-itu_wet_ground" name="bsdf"/>

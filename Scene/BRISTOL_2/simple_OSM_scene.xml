@@ -8,7 +8,7 @@
     </integrator>
     <bsdf type="twosided" id="mat-itu_concrete">
         <bsdf type="diffuse">
-            <rgb value="0.539479 0.539479 0.53948" name="reflectance"/>
+            <rgb value="0.55 0.53 0.53" name="reflectance"/>
         </bsdf>
     </bsdf>
     <bsdf type="twosided" id="mat-itu_marble">
@@ -28,7 +28,7 @@
     </bsdf>
     <bsdf type="twosided" id="mat-itu_wet_ground">
         <bsdf type="diffuse">
-            <rgb value="0.91 0.569 0.055" name="reflectance"/>
+            <rgb value="0.824 0.815 0.815" name="reflectance"/>
         </bsdf>
     </bsdf>
     <emitter type="constant" id="World">

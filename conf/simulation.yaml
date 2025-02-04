@@ -37,13 +37,13 @@ learning_rate: 0.0001
 
 # For normalisation etc.
 min_power: 15.0 # in dBm, both inclusive
-max_power: 50.0
+max_power: 70.0
 
 # Transmitters
 transmitters:
     tx0:
         name: "tx0"
-        position: [-53,17, 25] # transmitter and receiver structure needs to be the same - may need to include Doppler
+        position: [31, -106, 12] # [x,y,z] In the global scene coordinate system not the coverage map and utils system
         direction: [0, 0, 0]
         orientation: [0, 0, 0]
         color: [1, 0, 0]
@@ -52,13 +52,13 @@ transmitters:
         min_power: 15.0
         max_power: 23.0
         state: 0
-        look_at: [-30, 23, 10]
+        look_at: [10, -50, 10]
         mu_pa: 0.4
         primary_carrier_freq: 4145e6
 
     tx1:
         name: "tx1"
-        position: [63, -25, 21]
+        position: [-74, 126, 15]
         direction: [0, 0, 0]
         orientation: [0, 0, 0]
         color: [1, 0, 0]
@@ -67,13 +67,13 @@ transmitters:
         min_power: 20.0
         max_power: 30.0
         state: 0
-        look_at: [32, 0, 10]
+        look_at: [-50, 115, 10]
         mu_pa: 0.5
         primary_carrier_freq: 3425e6
 
     # tx2:
     #     name: "tx2"
-    #     position: [20, -40, 25] # transmitter and receiver structure needs to be the same - may need to include Doppler
+    #     position: [0,0,0] # transmitter and receiver structure needs to be the same - may need to include Doppler
     #     direction: [0, 0, 0]
     #     orientation: [0, 0, 0]
     #     color: [1, 0, 0]

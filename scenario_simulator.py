@@ -72,6 +72,7 @@ class FullSimulator:
     def _scene_init(self):
         """ Initialising the scene. """
         self.scene = self._create_scene()
+        self.center_transform = np.round(np.array([self.scene.center.numpy()[0], self.scene.center.numpy()[1], 0]))
         self.cm, area = self._coverage_map(init=True) # used to determine all possible valid areas
         self.cm, self.sinr = self._coverage_map(init=False) # correcting power levels
         self.grid = self._validity_matrix(self.cm.num_cells_x, self.cm.num_cells_y, area)
@@ -81,7 +82,8 @@ class FullSimulator:
     def _create_scene(self):
         """ Creating the simulation scene, only called once during intialisation."""
         sn = load_scene(self.scene_name)
-        sn.add(Camera("cam", position=[25,-300,150], look_at=[0,0,0]))
+        sn.add(Camera("cam1", position=[300, -320, 230], look_at=sn.center))
+        sn.add(Camera("cam2", position=[sn.center.numpy()[0],sn.center.numpy()[1],500], orientation=[np.pi/2, np.pi/2,-np.pi/2]))
 
         sn.synthetic_array=True # False = ray tracing done per antenna element
         sn.frequency = self.carrier_frequency
@@ -114,7 +116,7 @@ class FullSimulator:
                 if tx not in self.scene.transmitters:
                     # Adding new transmitters
                     transmitter = Transmitter(name=self.transmitters[tx]["name"],
-                                              position=self.transmitters[tx]["position"], # top of red building on simple street canyon
+                                              position=np.array(self.transmitters[tx]["position"]) + self.center_transform, # add center position to correct for non origin scene centres
                                               orientation=self.transmitters[tx]["orientation"], # angles [alpha,beta,gamma] corrsponding to rotation around [z,y,x] axes (yaw, pitch, roll)
                                               color=self.transmitters[tx]["color"],
                                               power_dbm=self.pmax)
@@ -222,8 +224,8 @@ class FullSimulator:
         results = {"bler": tf.stack(blers), "sinr": tf.stack(sinrs), "rate": tf.stack(rates)}
 
         # Saving the camera plot:
-        self.scene.render_to_file(camera="cam",
-                                  filename="/home/ubuntu/spectrum_sharing/Simulations/"+"Camera.png",
+        self.scene.render_to_file(camera="cam1",
+                                  filename="/home/ubuntu/spectrum_sharing/Simulations/"+"Camera1.png",
                                   paths=paths,
                                   show_paths=True,
                                   show_devices=True,
@@ -231,7 +233,18 @@ class FullSimulator:
                                   cm_db_scale=True,
                                   cm_vmin=-100,
                                   cm_vmax=100,
-                                  resolution=[1080,720],
+                                  resolution=[1920,1080],
+                                  fov=55)
+        self.scene.render_to_file(camera="cam2",
+                                  filename="/home/ubuntu/spectrum_sharing/Simulations/"+"Camera2.png",
+                                  paths=paths,
+                                  show_paths=False,
+                                  show_devices=True,
+                                  #coverage_map=self.cm,
+                                  cm_db_scale=True,
+                                  cm_vmin=-100,
+                                  cm_vmax=100,
+                                  resolution=[1920,1080],
                                   fov=55)
                                 
 
@@ -239,20 +252,30 @@ class FullSimulator:
 
 
     def update_receivers(self, receivers):
-        """ Changing the receivers within the scene. """
+        """ Changing the receivers within the scene. 
+        
+        Note that coordinate handling is delicate between Sionna scenes, coverage maps and utility functions. 
+        
+        """
         per_rx_sinr_db = []
+        max_x = float(self.scene.size[0].numpy())
+        max_y = float(self.scene.size[1].numpy())
         if len(self.scene.receivers) == 0:
-            # Adding receivers for the first time.
+            # Adding receivers for the first time. 
             for rx_id, rx in enumerate(receivers.values()):
+                reversed_coords = np.array([rx["position"].numpy()[1],rx["position"].numpy()[0], rx["position"].numpy()[2]])
+                pos = (reversed_coords * self.cell_size) - np.array([round(max_x/2), round(max_y/2), 0]) + self.center_transform
                 self.scene.add(Receiver(name=f"rx{rx_id}",
-                                        position=rx["position"], 
+                                        position=pos, 
                                         color=rx["color"],)) 
                 sinr_db = 10 * tf.math.log(self.sinr[:,rx["position"][0], rx["position"][1]]) / tf.math.log(10.0)
                 per_rx_sinr_db.append(sinr_db)                        
 
         else:
             for rx_id, rx in enumerate(receivers.values()):
-                self.scene.receivers[f"rx{rx_id}"].position = rx["position"]
+                reversed_coords = np.array([rx["position"].numpy()[1],rx["position"].numpy()[0], rx["position"].numpy()[2]])
+                pos = (reversed_coords * self.cell_size) - np.array([round(max_x/2), round(max_y/2), 0]) + self.center_transform
+                self.scene.receivers[f"rx{rx_id}"].position = pos
                 sinr_db = 10 * tf.math.log(self.sinr[:,rx["position"][0], rx["position"][1]]) / tf.math.log(10.0)
                 per_rx_sinr_db.append(sinr_db)    
         self.receivers = receivers
