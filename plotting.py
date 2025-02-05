@@ -137,7 +137,7 @@ def plot_motion(step,
     ax.quiver(
         x_positions, y_positions,  # Start positions of the arrows
         dx, dy,  # Vector components
-        angles='xy', scale_units='xy', scale=5, label='Direction'
+        angles='xy', scale_units='xy', scale=2.5, label='Direction'
     )
 
     # Labels and title
@@ -146,10 +146,11 @@ def plot_motion(step,
     ax.set_ylabel("Y [Cells]", fontsize=40)
     ax.legend(fontsize=30)
     
-    if id == "Sharing Band, Max SINR":
-        fig.savefig(save_path + f"Scene {id} Step{step}.png")
-    else:
-        fig.savefig(save_path + f"Scene {id}.png")#, bbox_inches="tight")
+    fig.savefig(save_path + f"Scene {id} Step {step}.png")
+    # if id == "Sharing Band, Max SINR":
+    #     fig.savefig(save_path + f"Scene {id} Step {step}.png")
+    # else:
+    #     fig.savefig(save_path + f"Scene {id}.png")#, bbox_inches="tight")
 
     for i in range(len(users)):
         ax.plot([x_positions[i], x_positions[i] + dx[i]], [y_positions[i], y_positions[i] + dy[i]], color=cmap(i), linewidth=4)

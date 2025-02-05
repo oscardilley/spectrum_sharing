@@ -211,14 +211,14 @@ class FullSimulator:
                 sinrs.append(tf.constant(-1000, shape=(self.num_rx), dtype=tf.float32)) # SINR in dB so need to force to -inf
 
         # Calculate the users achieving < 1 BLER to schedule  
-        num_scheduled = tf.math.count_nonzero(tf.less(blers, 1)) # problem here when all achieve zero communication even with a transmitter on
+        num_scheduled = tf.math.count_nonzero(tf.less(blers, 1)) 
         if num_scheduled.numpy() == 0:
             logger.warning("Transmitters on but all BLER = 1.")
             max_data_sent_per_ue = 0 
         else:
             max_data_sent_per_ue = (self.simulator.pusch_config.tb_size * self.batch_size) / num_scheduled # bits
         time_step = (self.batch_size / self.simulator.pusch_config.carrier.num_slots_per_frame) * self.simulator.pusch_config.carrier.frame_duration
-        max_rate_per_ue = max_data_sent_per_ue / time_step
+        max_rate_per_ue = max_data_sent_per_ue / time_step # in order to account for different numerologies
         rates = [(1 - bler) * max_rate_per_ue for bler in blers]
 
         results = {"bler": tf.stack(blers), "sinr": tf.stack(sinrs), "rate": tf.stack(rates)}

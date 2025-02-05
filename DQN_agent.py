@@ -133,7 +133,6 @@ class Agent:
                          continue
                     power = round((float(observation[tx_id]["tx_power"][0]) * (self.cfg.max_power - self.cfg.min_power)) + self.cfg.min_power) # denormalising
                     if (tx[1] == 2 and power == self.transmitters[f"tx{tx_id}"]["max_power"]) or (tx[1] == 0 and power == self.transmitters[f"tx{tx_id}"]["min_power"]):
-                        logger.info(f"Dynamic masking to avoid exceding power ({power}) constrint. Tx {tx_id}, Action {id}: {action}.")
                         valid_mask[id] = 0 # do not increase or decrease power beyond transmitter limit
                         continue
                 else:
