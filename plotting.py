@@ -70,7 +70,8 @@ def plot_rewards(episode,
         ax.set_xlabel("Step", fontsize=12)
         ax.set_ylabel(reward_labels[i], fontsize=12)
 
-    fig.savefig(save_path + f"Rewards Ep{episode}.png", dpi=400)#, bbox_inches="tight")
+    # fig.savefig(save_path + f"Rewards Ep{episode}.png", dpi=400)#, bbox_inches="tight")
+    fig.savefig(save_path + f"Rewards Ep{episode} Step{step}.png", dpi=400)#, bbox_inches="tight")
     plt.close()
 
     return 

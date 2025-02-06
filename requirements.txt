@@ -8,3 +8,4 @@ runipy
 pandas
 gymnasium
 colorlog
+opencv-python

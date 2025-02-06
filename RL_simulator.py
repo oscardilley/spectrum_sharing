@@ -162,6 +162,11 @@ class SionnaEnv(gym.Env):
         primaryOutputs = [primaryBand(self.users, state, self.transmitters) for primaryBand, state in zip(self.primaryBands.values(), self.initial_states.values())]
         sharingOutput = self.sharingBand(self.users, self.sharing_state, self.transmitters, self.timestep, self.cfg.images_path)
 
+        # Printing simulation details:
+        # if self.timestep == 1:
+        #     [band.simulator.pusch_config.show() for band in self.primaryBands.values()]
+        #     self.sharingBand.simulator.pusch_config.show()
+
         # Updating SINR maps
         self.primary_sinr_maps = [primaryBand.sinr for primaryBand in self.primaryBands.values()]    
         self.sharing_sinr_map = self.sharingBand.sinr

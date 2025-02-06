@@ -220,6 +220,7 @@ class FullSimulator:
         time_step = (self.batch_size / self.simulator.pusch_config.carrier.num_slots_per_frame) * self.simulator.pusch_config.carrier.frame_duration
         max_rate_per_ue = max_data_sent_per_ue / time_step # in order to account for different numerologies
         rates = [(1 - bler) * max_rate_per_ue for bler in blers]
+        # logger.warning(f"Rates: {rates}")
 
         results = {"bler": tf.stack(blers), "sinr": tf.stack(sinrs), "rate": tf.stack(rates)}
 
