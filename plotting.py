@@ -70,8 +70,8 @@ def plot_rewards(episode,
         ax.set_xlabel("Step", fontsize=12)
         ax.set_ylabel(reward_labels[i], fontsize=12)
 
-    # fig.savefig(save_path + f"Rewards Ep{episode}.png", dpi=400)#, bbox_inches="tight")
-    fig.savefig(save_path + f"Rewards Ep{episode} Step{step}.png", dpi=400)#, bbox_inches="tight")
+    fig.savefig(save_path + f"Rewards Ep{episode}.png", dpi=400)#, bbox_inches="tight")
+    # fig.savefig(save_path + f"Rewards Ep{episode} Step{step}.png", dpi=400)#, bbox_inches="tight")
     plt.close()
 
     return 
@@ -147,11 +147,11 @@ def plot_motion(step,
     ax.set_ylabel("Y [Cells]", fontsize=40)
     ax.legend(fontsize=30)
     
-    fig.savefig(save_path + f"Scene {id} Step {step}.png")
-    # if id == "Sharing Band, Max SINR":
-    #     fig.savefig(save_path + f"Scene {id} Step {step}.png")
-    # else:
-    #     fig.savefig(save_path + f"Scene {id}.png")#, bbox_inches="tight")
+    # fig.savefig(save_path + f"Scene {id} Step {step}.png")
+    if id == "Sharing Band, Max SINR":
+        fig.savefig(save_path + f"Scene {id} Step {step}.png")
+    else:
+        fig.savefig(save_path + f"Scene {id}.png")#, bbox_inches="tight")
 
     for i in range(len(users)):
         ax.plot([x_positions[i], x_positions[i] + dx[i]], [y_positions[i], y_positions[i] + dy[i]], color=cmap(i), linewidth=4)

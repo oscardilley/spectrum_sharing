@@ -25,16 +25,21 @@ def main(cfg):
     env = SionnaEnv(cfg)
     # buffer = ReplayBuffer(cfg.buffer_max_size, cfg.log_path) # not required as no training
     agent = Agent(cfg,
+                  num_tx=len(cfg.transmitters),
                   observation_space=env.observation_space,
                   action_space=env.action_space,
-                  path=cfg.test_models_path,
-                  test=True)
+                  possible_actions=env.possible_actions,
+                  num_possible_actions=env.num_actions,
+                  path=cfg.test_models_path)
 
-    test = {"Agent": None, 
-            "TX 0 ON, Max": (np.array([1, 0], dtype=np.int8), 34, 34), 
-            "TX 0 ON, Min": (np.array([1, 0], dtype=np.int8), 25, 25), 
-            "TX 1 ON, Max": (np.array([0, 1], dtype=np.int8), 34, 34), 
-            "TX 1 ON, Min": (np.array([0, 1], dtype=np.int8), 25, 25)}
+    # test = {"Agent": None, 
+    print(env.action_space.sample())
+    test = {"TX 0 ON, Max": (np.array([1, 1]), np.array([0, 1])), 
+            #"TX 0 ON, Min": (np.array([1, 1], dtype=np.int8), np.array([0, 1], dtype=np.int8)), 
+            "TX 1 ON, Max": (np.array([0, 1], dtype=np.int32), np.array([1, 1], dtype=np.int32)), 
+            #"TX 1 ON, Min": (np.array([0, 1], dtype=np.int8), np.array([1, 1], dtype=np.int8)),
+            #"Both ON, Min": (np.array([1, 1], dtype=np.int8), np.array([1, 1], dtype=np.int8)),
+            "Both ON, Max": (np.array([1, 1], dtype=np.int32), np.array([1, 1], dtype=np.int32))}
     
     reward_per_test = [[] for e in range(len(test))] # need to change to not be per episode
     avg_reward_per_test = [0.0 for e in range(len(test))] # need to change to not be per episode

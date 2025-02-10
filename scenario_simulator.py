@@ -225,29 +225,29 @@ class FullSimulator:
         results = {"bler": tf.stack(blers), "sinr": tf.stack(sinrs), "rate": tf.stack(rates)}
 
         # Only saving if timestep is provided (sharing band only):
-        if timestep is not None:
-            self.scene.render_to_file(camera="cam1",
-                                    filename=str(path)+f"Camera 1 Step {timestep}.png",
-                                    paths=paths,
-                                    show_paths=True,
-                                    show_devices=True,
-                                    #coverage_map=self.cm,
-                                    cm_db_scale=True,
-                                    cm_vmin=-100,
-                                    cm_vmax=100,
-                                    resolution=[1920,1080],
-                                    fov=55)
-            self.scene.render_to_file(camera="cam2",
-                                    filename=str(path)+f"Camera 2 Step {timestep}.png",
-                                    paths=paths,
-                                    show_paths=True,
-                                    show_devices=True,
-                                    #coverage_map=self.cm,
-                                    cm_db_scale=True,
-                                    cm_vmin=-100,
-                                    cm_vmax=100,
-                                    resolution=[1920,1080],
-                                    fov=55)
+        # if timestep is not None:
+        #     self.scene.render_to_file(camera="cam1",
+        #                             filename=str(path)+f"Camera 1 Step {timestep}.png",
+        #                             paths=paths,
+        #                             show_paths=True,
+        #                             show_devices=True,
+        #                             #coverage_map=self.cm,
+        #                             cm_db_scale=True,
+        #                             cm_vmin=-100,
+        #                             cm_vmax=100,
+        #                             resolution=[1920,1080],
+        #                             fov=55)
+        #     self.scene.render_to_file(camera="cam2",
+        #                             filename=str(path)+f"Camera 2 Step {timestep}.png",
+        #                             paths=paths,
+        #                             show_paths=True,
+        #                             show_devices=True,
+        #                             #coverage_map=self.cm,
+        #                             cm_db_scale=True,
+        #                             cm_vmin=-100,
+        #                             cm_vmax=100,
+        #                             resolution=[1920,1080],
+        #                             fov=55)
                                     
 
         return results
