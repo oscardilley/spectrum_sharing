@@ -45,6 +45,9 @@ class SionnaEnv(gym.Env):
             range(power_action.n)     # [0, 1, 2] for power actions
         ))
         self.possible_actions = list(itertools.product(single_tx_actions, single_tx_actions))
+
+        # print("Num possible: ", len(self.possible_actions))
+
         single_ue_observation = spaces.Dict({
             "ue_pos": spaces.Box(low=0, high=1, shape=(2,), dtype=np.float32, seed=self.cfg.random_seed),
             "ue_sinr": spaces.Box(low=0, high=1, shape=(1,), dtype=np.float32, seed=self.cfg.random_seed),

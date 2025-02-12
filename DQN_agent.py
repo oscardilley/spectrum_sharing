@@ -6,6 +6,7 @@ import tensorflow as tf
 from collections import deque
 import numpy as np
 from itertools import product
+from time import perf_counter
 import gymnasium as gym
 from gymnasium import spaces
 import pickle
@@ -110,9 +111,12 @@ class Agent:
             return self.actions[idx], idx
         else:
             # Predicting q-values and then masking them
+            # start = perf_counter()
             observation = [obs[np.newaxis] for obs in self._preprocess_observation(observation)] # for tf batch dimension, using [np.newaxis]
             q_values = self.model.predict(observation, verbose=0) # add extra axis for batch
             q_values = np.where(valid_mask, q_values, 0) # if valid, return the q value, else return zero
+            # end = perf_counter()
+            # print("Inference time: ", end - start)
 
             logger.info(f"Q-values: Mean={np.mean(q_values)}, Max={np.max(q_values)}, Min={np.min(q_values)}")
             idx = np.argmax(q_values[0])

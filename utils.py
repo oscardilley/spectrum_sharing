@@ -142,6 +142,7 @@ def update_users(grid, num_users, users, max_move=2):
     y_max = grid.shape[0]
     x_max = grid.shape[1]
     valid_indices = tf.where(grid)
+    print(y_max, x_max)
     
     if users == {}:
         # Initialising users

@@ -7,6 +7,7 @@ For iterating through episodes of Sionna simulations.
 import tensorflow as tf
 from sionna.rt import load_scene, PlanarArray, Transmitter, Receiver, Camera
 import numpy as np
+from time import perf_counter
 
 from channel_simulator import ChannelSimulator
 from logger import logger
@@ -193,12 +194,21 @@ class FullSimulator:
                             rx_velocities=[self.cell_size * receiver["direction"] for receiver in receivers.values()]) # [batch_size, num_rx, 3] shape
        
         a, tau = paths.cir(los=True)
+
+        # print("A and Tau shape:")
+        # print(a.shape, tau.shape)
+        # print(a.dtype, tau.dtype)
+
         num_active_tx = int(tf.reduce_sum(tf.cast(self.state, tf.int32)))
         self.simulator.update_channel(num_active_tx, a, tau)
         self.simulator.update_sinr(per_rx_sinr)
 
         # Bit level simulation
+        # start = perf_counter()
         bler, sinr = self.simulator(block_size=self.batch_size)
+        # end = perf_counter()
+        # total = end - start
+        # print(f"Time taken for bit level simulation: {total}")
 
         # Handling dynamic size of state:
         for state in self.state:
