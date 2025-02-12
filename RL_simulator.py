@@ -246,8 +246,8 @@ class SionnaEnv(gym.Env):
             sharing_ues = []
 
             for user_id, user in enumerate(self.users.values()):
-                x = user["position"][1].numpy()
-                y = user["position"][0].numpy()
+                x = user["position"][1]#.numpy()
+                y = user["position"][0]#.numpy()
 
                 norm_x = self._norm(x, 0, self.valid_area.shape[1])
                 norm_y = self._norm(y, 0, self.valid_area.shape[0])

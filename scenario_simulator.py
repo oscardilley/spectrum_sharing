@@ -265,7 +265,8 @@ class FullSimulator:
         if len(self.scene.receivers) == 0:
             # Adding receivers for the first time. 
             for rx_id, rx in enumerate(receivers.values()):
-                reversed_coords = np.array([rx["position"].numpy()[1],rx["position"].numpy()[0], rx["position"].numpy()[2]])
+                # reversed_coords = np.array([rx["position"].numpy()[1],rx["position"].numpy()[0], rx["position"].numpy()[2]])
+                reversed_coords = np.array([rx["position"][1],rx["position"][0], rx["position"][2]])
                 pos = (reversed_coords * self.cell_size) - np.array([round(max_x/2), round(max_y/2), 0]) + self.center_transform
                 self.scene.add(Receiver(name=f"rx{rx_id}",
                                         position=pos, 
@@ -275,7 +276,8 @@ class FullSimulator:
 
         else:
             for rx_id, rx in enumerate(receivers.values()):
-                reversed_coords = np.array([rx["position"].numpy()[1],rx["position"].numpy()[0], rx["position"].numpy()[2]])
+                # reversed_coords = np.array([rx["position"].numpy()[1],rx["position"].numpy()[0], rx["position"].numpy()[2]])
+                reversed_coords = np.array([rx["position"][1],rx["position"][0], rx["position"][2]])
                 pos = (reversed_coords * self.cell_size) - np.array([round(max_x/2), round(max_y/2), 0]) + self.center_transform
                 self.scene.receivers[f"rx{rx_id}"].position = pos
                 sinr_db = 10 * tf.math.log(self.sinr[:,rx["position"][0], rx["position"][1]]) / tf.math.log(10.0)

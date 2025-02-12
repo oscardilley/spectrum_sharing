@@ -1,7 +1,7 @@
 # Simulation
 episodes: 1000
 step_limit: 100
-random_seed: 34
+random_seed: 42
 
 # General
 max_results_length: 10 # for plotting
@@ -48,7 +48,7 @@ transmitters:
         orientation: [0, 0, 0]
         color: [1, 0, 0]
         primary_power: 17.0
-        sharing_power: 23.0
+        sharing_power: 19.0
         min_power: 15.0
         max_power: 23.0
         state: 0
@@ -63,7 +63,7 @@ transmitters:
         orientation: [0, 0, 0]
         color: [1, 0, 0]
         primary_power: 25.0
-        sharing_power: 30.0
+        sharing_power: 25.0
         min_power: 20.0
         max_power: 30.0
         state: 0
