@@ -3,6 +3,8 @@
 
 Closed loop simulator for testing reinforcement learning models with Sionna. 
 
+Must run as a module: python3 -m spectrum_sharing.main
+
 """
 
 import tensorflow as tf
@@ -13,10 +15,10 @@ import numpy as np
 import os
 import matplotlib.pyplot as plt
 
-from RL_simulator import SionnaEnv
-from DQN_agent import Agent, ReplayBuffer
-from logger import logger
-from plotting import plot_total_rewards
+from spectrum_sharing.RL_simulator import SionnaEnv
+from spectrum_sharing.DQN_agent import Agent, ReplayBuffer
+from spectrum_sharing.logger import logger
+from spectrum_sharing.plotting import plot_total_rewards
 
 def main(cfg):
     """Run the simulator."""

@@ -9,8 +9,8 @@ from sionna.rt import load_scene, PlanarArray, Transmitter, Receiver, Camera
 import numpy as np
 from time import perf_counter
 
-from channel_simulator import ChannelSimulator
-from logger import logger
+from spectrum_sharing.channel_simulator import ChannelSimulator
+from spectrum_sharing.logger import logger
 
 
 class FullSimulator:

@@ -13,10 +13,10 @@ import gymnasium as gym
 from gymnasium import spaces
 import itertools
 
-from plotting import plot_motion, plot_performance, plot_rewards
-from utils import update_users, get_throughput, get_spectral_efficiency, get_power_efficiency, get_spectrum_utility
-from scenario_simulator import FullSimulator
-from logger import logger
+from spectrum_sharing.plotting import plot_motion, plot_performance, plot_rewards
+from spectrum_sharing.utils import update_users, get_throughput, get_spectral_efficiency, get_power_efficiency, get_spectrum_utility
+from spectrum_sharing.scenario_simulator import FullSimulator
+from spectrum_sharing.logger import logger
 
 class SionnaEnv(gym.Env):
     """ Sionna environment for reinforcement learning. """

@@ -11,7 +11,7 @@ import gymnasium as gym
 from gymnasium import spaces
 import pickle
 
-from logger import logger
+from spectrum_sharing.logger import logger
 
 class Agent:
     def __init__(self, cfg, observation_space, num_tx, action_space, possible_actions, num_possible_actions, path, test=False):
