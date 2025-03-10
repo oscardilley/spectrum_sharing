@@ -56,241 +56,241 @@
         </film>
     </sensor>
     <shape type="obj">
-        <string name="filename" value="Scene/ground_plane.obj"/>
+        <string name="filename" value="spectrum_sharing/Scene/ground_plane.obj"/>
         <ref id="mat-itu_wet_ground" name="bsdf"/>
     </shape>
     <shape type="ply" id="mesh-ground">
-        <string name="filename" value="Scene/BRISTOL_3/mesh/ground.ply"/>
+        <string name="filename" value="spectrum_sharing/Scene/BRISTOL_3/mesh/ground.ply"/>
         <ref id="mat-itu_wet_ground" name="bsdf"/>
         <boolean name="face_normals" value="true"/>
     </shape>
     <shape type="ply" id="mesh-building_0">
-        <string name="filename" value="Scene/BRISTOL_3/mesh/building_0.ply"/>
+        <string name="filename" value="spectrum_sharing/Scene/BRISTOL_3/mesh/building_0.ply"/>
         <ref id="mat-itu_marble" name="bsdf"/>
         <boolean name="face_normals" value="true"/>
     </shape>
     <shape type="ply" id="mesh-building_1">
-        <string name="filename" value="Scene/BRISTOL_3/mesh/building_1.ply"/>
+        <string name="filename" value="spectrum_sharing/Scene/BRISTOL_3/mesh/building_1.ply"/>
         <ref id="mat-itu_marble" name="bsdf"/>
         <boolean name="face_normals" value="true"/>
     </shape>
     <shape type="ply" id="mesh-building_2">
-        <string name="filename" value="Scene/BRISTOL_3/mesh/building_2.ply"/>
+        <string name="filename" value="spectrum_sharing/Scene/BRISTOL_3/mesh/building_2.ply"/>
         <ref id="mat-itu_marble" name="bsdf"/>
         <boolean name="face_normals" value="true"/>
     </shape>
     <shape type="ply" id="mesh-building_3">
-        <string name="filename" value="Scene/BRISTOL_3/mesh/building_3.ply"/>
+        <string name="filename" value="spectrum_sharing/Scene/BRISTOL_3/mesh/building_3.ply"/>
         <ref id="mat-itu_marble" name="bsdf"/>
         <boolean name="face_normals" value="true"/>
     </shape>
     <shape type="ply" id="mesh-building_4">
-        <string name="filename" value="Scene/BRISTOL_3/mesh/building_4.ply"/>
+        <string name="filename" value="spectrum_sharing/Scene/BRISTOL_3/mesh/building_4.ply"/>
         <ref id="mat-itu_marble" name="bsdf"/>
         <boolean name="face_normals" value="true"/>
     </shape>
     <shape type="ply" id="mesh-building_5">
-        <string name="filename" value="Scene/BRISTOL_3/mesh/building_5.ply"/>
+        <string name="filename" value="spectrum_sharing/Scene/BRISTOL_3/mesh/building_5.ply"/>
         <ref id="mat-itu_marble" name="bsdf"/>
         <boolean name="face_normals" value="true"/>
     </shape>
     <shape type="ply" id="mesh-building_6">
-        <string name="filename" value="Scene/BRISTOL_3/mesh/building_6.ply"/>
+        <string name="filename" value="spectrum_sharing/Scene/BRISTOL_3/mesh/building_6.ply"/>
         <ref id="mat-itu_marble" name="bsdf"/>
         <boolean name="face_normals" value="true"/>
     </shape>
     <shape type="ply" id="mesh-building_7">
-        <string name="filename" value="Scene/BRISTOL_3/mesh/building_7.ply"/>
+        <string name="filename" value="spectrum_sharing/Scene/BRISTOL_3/mesh/building_7.ply"/>
         <ref id="mat-itu_marble" name="bsdf"/>
         <boolean name="face_normals" value="true"/>
     </shape>
     <shape type="ply" id="mesh-building_8">
-        <string name="filename" value="Scene/BRISTOL_3/mesh/building_8.ply"/>
+        <string name="filename" value="spectrum_sharing/Scene/BRISTOL_3/mesh/building_8.ply"/>
         <ref id="mat-itu_marble" name="bsdf"/>
         <boolean name="face_normals" value="true"/>
     </shape>
     <shape type="ply" id="mesh-building_9">
-        <string name="filename" value="Scene/BRISTOL_3/mesh/building_9.ply"/>
+        <string name="filename" value="spectrum_sharing/Scene/BRISTOL_3/mesh/building_9.ply"/>
         <ref id="mat-itu_marble" name="bsdf"/>
         <boolean name="face_normals" value="true"/>
     </shape>
     <shape type="ply" id="mesh-building_10">
-        <string name="filename" value="Scene/BRISTOL_3/mesh/building_10.ply"/>
+        <string name="filename" value="spectrum_sharing/Scene/BRISTOL_3/mesh/building_10.ply"/>
         <ref id="mat-itu_marble" name="bsdf"/>
         <boolean name="face_normals" value="true"/>
     </shape>
     <shape type="ply" id="mesh-building_11">
-        <string name="filename" value="Scene/BRISTOL_3/mesh/building_11.ply"/>
+        <string name="filename" value="spectrum_sharing/Scene/BRISTOL_3/mesh/building_11.ply"/>
         <ref id="mat-itu_marble" name="bsdf"/>
         <boolean name="face_normals" value="true"/>
     </shape>
     <shape type="ply" id="mesh-building_12">
-        <string name="filename" value="Scene/BRISTOL_3/mesh/building_12.ply"/>
+        <string name="filename" value="spectrum_sharing/Scene/BRISTOL_3/mesh/building_12.ply"/>
         <ref id="mat-itu_marble" name="bsdf"/>
         <boolean name="face_normals" value="true"/>
     </shape>
     <shape type="ply" id="mesh-building_13">
-        <string name="filename" value="Scene/BRISTOL_3/mesh/building_13.ply"/>
+        <string name="filename" value="spectrum_sharing/Scene/BRISTOL_3/mesh/building_13.ply"/>
         <ref id="mat-itu_marble" name="bsdf"/>
         <boolean name="face_normals" value="true"/>
     </shape>
     <shape type="ply" id="mesh-building_14">
-        <string name="filename" value="Scene/BRISTOL_3/mesh/building_14.ply"/>
+        <string name="filename" value="spectrum_sharing/Scene/BRISTOL_3/mesh/building_14.ply"/>
         <ref id="mat-itu_marble" name="bsdf"/>
         <boolean name="face_normals" value="true"/>
     </shape>
     <shape type="ply" id="mesh-building_15">
-        <string name="filename" value="Scene/BRISTOL_3/mesh/building_15.ply"/>
+        <string name="filename" value="spectrum_sharing/Scene/BRISTOL_3/mesh/building_15.ply"/>
         <ref id="mat-itu_marble" name="bsdf"/>
         <boolean name="face_normals" value="true"/>
     </shape>
     <shape type="ply" id="mesh-building_16">
-        <string name="filename" value="Scene/BRISTOL_3/mesh/building_16.ply"/>
+        <string name="filename" value="spectrum_sharing/Scene/BRISTOL_3/mesh/building_16.ply"/>
         <ref id="mat-itu_marble" name="bsdf"/>
         <boolean name="face_normals" value="true"/>
     </shape>
     <shape type="ply" id="mesh-building_17">
-        <string name="filename" value="Scene/BRISTOL_3/mesh/building_17.ply"/>
+        <string name="filename" value="spectrum_sharing/Scene/BRISTOL_3/mesh/building_17.ply"/>
         <ref id="mat-itu_marble" name="bsdf"/>
         <boolean name="face_normals" value="true"/>
     </shape>
     <shape type="ply" id="mesh-building_18">
-        <string name="filename" value="Scene/BRISTOL_3/mesh/building_18.ply"/>
+        <string name="filename" value="spectrum_sharing/Scene/BRISTOL_3/mesh/building_18.ply"/>
         <ref id="mat-itu_marble" name="bsdf"/>
         <boolean name="face_normals" value="true"/>
     </shape>
     <shape type="ply" id="mesh-building_19">
-        <string name="filename" value="Scene/BRISTOL_3/mesh/building_19.ply"/>
+        <string name="filename" value="spectrum_sharing/Scene/BRISTOL_3/mesh/building_19.ply"/>
         <ref id="mat-itu_marble" name="bsdf"/>
         <boolean name="face_normals" value="true"/>
     </shape>
     <shape type="ply" id="mesh-building_20">
-        <string name="filename" value="Scene/BRISTOL_3/mesh/building_20.ply"/>
+        <string name="filename" value="spectrum_sharing/Scene/BRISTOL_3/mesh/building_20.ply"/>
         <ref id="mat-itu_marble" name="bsdf"/>
         <boolean name="face_normals" value="true"/>
     </shape>
     <shape type="ply" id="mesh-building_21">
-        <string name="filename" value="Scene/BRISTOL_3/mesh/building_21.ply"/>
+        <string name="filename" value="spectrum_sharing/Scene/BRISTOL_3/mesh/building_21.ply"/>
         <ref id="mat-itu_marble" name="bsdf"/>
         <boolean name="face_normals" value="true"/>
     </shape>
     <shape type="ply" id="mesh-building_22">
-        <string name="filename" value="Scene/BRISTOL_3/mesh/building_22.ply"/>
+        <string name="filename" value="spectrum_sharing/Scene/BRISTOL_3/mesh/building_22.ply"/>
         <ref id="mat-itu_marble" name="bsdf"/>
         <boolean name="face_normals" value="true"/>
     </shape>
     <shape type="ply" id="mesh-building_23">
-        <string name="filename" value="Scene/BRISTOL_3/mesh/building_23.ply"/>
+        <string name="filename" value="spectrum_sharing/Scene/BRISTOL_3/mesh/building_23.ply"/>
         <ref id="mat-itu_marble" name="bsdf"/>
         <boolean name="face_normals" value="true"/>
     </shape>
     <shape type="ply" id="mesh-building_24">
-        <string name="filename" value="Scene/BRISTOL_3/mesh/building_24.ply"/>
+        <string name="filename" value="spectrum_sharing/Scene/BRISTOL_3/mesh/building_24.ply"/>
         <ref id="mat-itu_marble" name="bsdf"/>
         <boolean name="face_normals" value="true"/>
     </shape>
     <shape type="ply" id="mesh-building_25">
-        <string name="filename" value="Scene/BRISTOL_3/mesh/building_25.ply"/>
+        <string name="filename" value="spectrum_sharing/Scene/BRISTOL_3/mesh/building_25.ply"/>
         <ref id="mat-itu_marble" name="bsdf"/>
         <boolean name="face_normals" value="true"/>
     </shape>
     <shape type="ply" id="mesh-building_26">
-        <string name="filename" value="Scene/BRISTOL_3/mesh/building_26.ply"/>
+        <string name="filename" value="spectrum_sharing/Scene/BRISTOL_3/mesh/building_26.ply"/>
         <ref id="mat-itu_marble" name="bsdf"/>
         <boolean name="face_normals" value="true"/>
     </shape>
     <shape type="ply" id="mesh-building_27">
-        <string name="filename" value="Scene/BRISTOL_3/mesh/building_27.ply"/>
+        <string name="filename" value="spectrum_sharing/Scene/BRISTOL_3/mesh/building_27.ply"/>
         <ref id="mat-itu_marble" name="bsdf"/>
         <boolean name="face_normals" value="true"/>
     </shape>
     <shape type="ply" id="mesh-building_28">
-        <string name="filename" value="Scene/BRISTOL_3/mesh/building_28.ply"/>
+        <string name="filename" value="spectrum_sharing/Scene/BRISTOL_3/mesh/building_28.ply"/>
         <ref id="mat-itu_marble" name="bsdf"/>
         <boolean name="face_normals" value="true"/>
     </shape>
     <shape type="ply" id="mesh-building_29">
-        <string name="filename" value="Scene/BRISTOL_3/mesh/building_29.ply"/>
+        <string name="filename" value="spectrum_sharing/Scene/BRISTOL_3/mesh/building_29.ply"/>
         <ref id="mat-itu_marble" name="bsdf"/>
         <boolean name="face_normals" value="true"/>
     </shape>
     <shape type="ply" id="mesh-building_30">
-        <string name="filename" value="Scene/BRISTOL_3/mesh/building_30.ply"/>
+        <string name="filename" value="spectrum_sharing/Scene/BRISTOL_3/mesh/building_30.ply"/>
         <ref id="mat-itu_marble" name="bsdf"/>
         <boolean name="face_normals" value="true"/>
     </shape>
     <shape type="ply" id="mesh-building_31">
-        <string name="filename" value="Scene/BRISTOL_3/mesh/building_31.ply"/>
+        <string name="filename" value="spectrum_sharing/Scene/BRISTOL_3/mesh/building_31.ply"/>
         <ref id="mat-itu_marble" name="bsdf"/>
         <boolean name="face_normals" value="true"/>
     </shape>
     <shape type="ply" id="mesh-building_32">
-        <string name="filename" value="Scene/BRISTOL_3/mesh/building_32.ply"/>
+        <string name="filename" value="spectrum_sharing/Scene/BRISTOL_3/mesh/building_32.ply"/>
         <ref id="mat-itu_marble" name="bsdf"/>
         <boolean name="face_normals" value="true"/>
     </shape>
     <shape type="ply" id="mesh-building_33">
-        <string name="filename" value="Scene/BRISTOL_3/mesh/building_33.ply"/>
+        <string name="filename" value="spectrum_sharing/Scene/BRISTOL_3/mesh/building_33.ply"/>
         <ref id="mat-itu_marble" name="bsdf"/>
         <boolean name="face_normals" value="true"/>
     </shape>
     <shape type="ply" id="mesh-building_34">
-        <string name="filename" value="Scene/BRISTOL_3/mesh/building_34.ply"/>
+        <string name="filename" value="spectrum_sharing/Scene/BRISTOL_3/mesh/building_34.ply"/>
         <ref id="mat-itu_marble" name="bsdf"/>
         <boolean name="face_normals" value="true"/>
     </shape>
     <shape type="ply" id="mesh-building_35">
-        <string name="filename" value="Scene/BRISTOL_3/mesh/building_35.ply"/>
+        <string name="filename" value="spectrum_sharing/Scene/BRISTOL_3/mesh/building_35.ply"/>
         <ref id="mat-itu_marble" name="bsdf"/>
         <boolean name="face_normals" value="true"/>
     </shape>
     <shape type="ply" id="mesh-building_36">
-        <string name="filename" value="Scene/BRISTOL_3/mesh/building_36.ply"/>
+        <string name="filename" value="spectrum_sharing/Scene/BRISTOL_3/mesh/building_36.ply"/>
         <ref id="mat-itu_marble" name="bsdf"/>
         <boolean name="face_normals" value="true"/>
     </shape>
     <shape type="ply" id="mesh-building_37">
-        <string name="filename" value="Scene/BRISTOL_3/mesh/building_37.ply"/>
+        <string name="filename" value="spectrum_sharing/Scene/BRISTOL_3/mesh/building_37.ply"/>
         <ref id="mat-itu_marble" name="bsdf"/>
         <boolean name="face_normals" value="true"/>
     </shape>
     <shape type="ply" id="mesh-building_38">
-        <string name="filename" value="Scene/BRISTOL_3/mesh/building_38.ply"/>
+        <string name="filename" value="spectrum_sharing/Scene/BRISTOL_3/mesh/building_38.ply"/>
         <ref id="mat-itu_marble" name="bsdf"/>
         <boolean name="face_normals" value="true"/>
     </shape>
     <shape type="ply" id="mesh-building_39">
-        <string name="filename" value="Scene/BRISTOL_3/mesh/building_39.ply"/>
+        <string name="filename" value="spectrum_sharing/Scene/BRISTOL_3/mesh/building_39.ply"/>
         <ref id="mat-itu_marble" name="bsdf"/>
         <boolean name="face_normals" value="true"/>
     </shape>
     <shape type="ply" id="mesh-building_40">
-        <string name="filename" value="Scene/BRISTOL_3/mesh/building_40.ply"/>
+        <string name="filename" value="spectrum_sharing/Scene/BRISTOL_3/mesh/building_40.ply"/>
         <ref id="mat-itu_marble" name="bsdf"/>
         <boolean name="face_normals" value="true"/>
     </shape>
     <shape type="ply" id="mesh-building_41">
-        <string name="filename" value="Scene/BRISTOL_3/mesh/building_41.ply"/>
+        <string name="filename" value="spectrum_sharing/Scene/BRISTOL_3/mesh/building_41.ply"/>
         <ref id="mat-itu_marble" name="bsdf"/>
         <boolean name="face_normals" value="true"/>
     </shape>
     <shape type="ply" id="mesh-building_42">
-        <string name="filename" value="Scene/BRISTOL_3/mesh/building_42.ply"/>
+        <string name="filename" value="spectrum_sharing/Scene/BRISTOL_3/mesh/building_42.ply"/>
         <ref id="mat-itu_marble" name="bsdf"/>
         <boolean name="face_normals" value="true"/>
     </shape>
     <shape type="ply" id="mesh-building_43">
-        <string name="filename" value="Scene/BRISTOL_3/mesh/building_43.ply"/>
+        <string name="filename" value="spectrum_sharing/Scene/BRISTOL_3/mesh/building_43.ply"/>
         <ref id="mat-itu_marble" name="bsdf"/>
         <boolean name="face_normals" value="true"/>
     </shape>
     <shape type="ply" id="mesh-building_44">
-        <string name="filename" value="Scene/BRISTOL_3/mesh/building_44.ply"/>
+        <string name="filename" value="spectrum_sharing/Scene/BRISTOL_3/mesh/building_44.ply"/>
         <ref id="mat-itu_marble" name="bsdf"/>
         <boolean name="face_normals" value="true"/>
     </shape>
     <shape type="ply" id="mesh-roads_44">
-        <string name="filename" value="Scene/BRISTOL_3/mesh/road_mesh_combined.ply"/>
+        <string name="filename" value="spectrum_sharing/Scene/BRISTOL_3/mesh/road_mesh_combined.ply"/>
         <ref id="mat-itu_concrete" name="bsdf"/>
         <boolean name="face_normals" value="true"/>
     </shape>

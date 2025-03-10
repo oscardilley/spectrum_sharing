@@ -9,7 +9,7 @@ logger = logging.getLogger("Logger")
 logger.setLevel(logging.INFO)  # Set the overall logging level for the logger
 
 # File handler to log messages to a file (INFO and above)
-file_handler = logging.FileHandler("/home/ubuntu/spectrum_sharing/Logging/app.log", encoding="utf-8", mode="a")
+file_handler = logging.FileHandler("/home/ubuntu/spectrum_sharing/spectrum_sharing/Logging/app.log", encoding="utf-8", mode="a")
 file_handler.setLevel(logging.INFO)
 file_formatter = logging.Formatter(
     fmt="{asctime} - {levelname} - {message}",

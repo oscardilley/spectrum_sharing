@@ -15,7 +15,7 @@ import itertools
 
 from plotting import plot_motion, plot_performance, plot_rewards
 from utils import update_users, get_throughput, get_spectral_efficiency, get_power_efficiency, get_spectrum_utility
-from spectrum_sharing.scenario_simulator import FullSimulator
+from scenario_simulator import FullSimulator
 from logger import logger
 
 class SionnaEnv(gym.Env):
