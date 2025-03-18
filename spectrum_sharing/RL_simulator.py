@@ -32,7 +32,7 @@ class SionnaEnv(gym.Env):
         self.sharing_bandwidth = self.cfg.primary_fft_size * self.cfg.primary_subcarrier_spacing
         self.primaryBands = {}
         self.initial_states = {}
-        self.norm_ranges= {"throughput": (0, 30), "se": (0, 6), "pe": (0, 6), "su": (0, 6)}
+        self.norm_ranges= {"throughput": (0, 30), "se": (0, 6), "pe": (1e-7, 1e-6), "su": (0, 6)}
 
         # Set up gym standard attributes
         self.truncated = False
@@ -46,12 +46,10 @@ class SionnaEnv(gym.Env):
         ))
         self.possible_actions = list(itertools.product(single_tx_actions, single_tx_actions))
 
-        # print("Num possible: ", len(self.possible_actions))
-
         single_ue_observation = spaces.Dict({
             "ue_pos": spaces.Box(low=0, high=1, shape=(2,), dtype=np.float32, seed=self.cfg.random_seed),
             "ue_sinr": spaces.Box(low=0, high=1, shape=(1,), dtype=np.float32, seed=self.cfg.random_seed),
-            "ue_bler":spaces.Box(low=0, high=1, shape=(1,), dtype=np.float32, seed=self.cfg.random_seed),
+            "ue_rate":spaces.Box(low=0, high=1, shape=(1,), dtype=np.float32, seed=self.cfg.random_seed),
         })
         self.num_actions = len(self.possible_actions)
         tx_observation = spaces.Dict({
@@ -99,7 +97,9 @@ class SionnaEnv(gym.Env):
                                     fft_size = self.cfg.sharing_fft_size,
                                     batch_size=self.cfg.batch_size,
                                     )
-    
+        global_centre = self.sharingBand.center_transform
+        self.global_max = (global_centre[0:2] + (self.sharingBand.global_size[0:2]  / 2)).astype(int)
+        self.global_min = (global_centre[0:2] - (self.sharingBand.global_size[0:2]  / 2)).astype(int)
 
         
     def reset(self, seed=None, options=None):
@@ -128,6 +128,7 @@ class SionnaEnv(gym.Env):
         for i in range(len(grids)):
             self.valid_area = tf.math.logical_or(self.valid_area, grids[i]) # shape [y_max, x_max]
         self.users = update_users(self.valid_area, self.cfg.num_rx, self.users) # getting initial user positions.
+
         # Updating SINR maps
         self.primary_sinr_maps = [primaryBand.sinr for primaryBand in self.primaryBands.values()]    
         self.sharing_sinr_map = self.sharingBand.sinr
@@ -183,15 +184,16 @@ class SionnaEnv(gym.Env):
         self.rates = tf.stack([primaryOutput["rate"] for primaryOutput in primaryOutputs] + sharingOutput["rate"])
         throughput, per_ue_throughput, per_ap_per_band_throughput = get_throughput(self.rates)
 
-        primary_power = tf.convert_to_tensor(np.power(10, (np.array([tx["primary_power"] for tx in self.transmitters.values()]) - 30) / 10), dtype=tf.float32)
+        primary_power = tf.convert_to_tensor(np.power(10, (np.array([tx["primary_power"] for tx in self.transmitters.values()]) - 30) / 10), dtype=tf.float32) # in W
         sharing_power = tf.convert_to_tensor(np.power(10, (np.array([tx["sharing_power"] for tx in self.transmitters.values()]) - 30) / 10), dtype=tf.float32)
+
         mu_pa = tf.convert_to_tensor([tx["mu_pa"] for tx in self.transmitters.values()])
         pe, per_ap_pe = get_power_efficiency(self.primary_bandwidth, # integral over power efficiency over time is energy efficiency
-                                                   self.sharing_bandwidth,
-                                                   self.sharing_state,
-                                                   primary_power,
-                                                   sharing_power,
-                                                   mu_pa)
+                                             self.sharing_bandwidth,
+                                             self.sharing_state,
+                                             primary_power,
+                                             sharing_power,
+                                             mu_pa)
 
         se, per_ap_se = get_spectral_efficiency(self.primary_bandwidth, 
                                                 self.sharing_bandwidth,
@@ -204,14 +206,26 @@ class SionnaEnv(gym.Env):
         
         # Plotting objectives/ rewards
         indices = tf.constant([[self.timestep, 0], [self.timestep, 1], [self.timestep, 2], [self.timestep, 3]])
+
+        # Checking validity of values before performing normalisation:
+        if not (self.norm_ranges["throughput"][0] <= throughput <= self.norm_ranges["throughput"][1]):
+            raise ValueError(f"Throughput value {throughput} is out of range: {self.norm_ranges['throughput']}")
+        if not (self.norm_ranges["se"][0] <= se <= self.norm_ranges["se"][1]):
+            raise ValueError(f"SE value {se} is out of range: {self.norm_ranges['se']}")
+        if not (self.norm_ranges["pe"][0] <= pe <= self.norm_ranges["pe"][1]):
+            raise ValueError(f"PE value {pe} is out of range: {self.norm_ranges['pe']}")
+        if not (self.norm_ranges["su"][0] <= su <= self.norm_ranges["su"][1]):
+            raise ValueError(f"SU value {su} is out of range: {self.norm_ranges['su']}")
+
         updates = tf.stack([throughput, 
                             se, 
                             pe, 
                             su], axis=0)
-        norm_updates = tf.stack([self._norm(throughput,self.norm_ranges["throughput"][0],self.norm_ranges["throughput"][1]), 
-                                 self._norm(se,self.norm_ranges["se"][0],self.norm_ranges["se"][1]), 
-                                 self._norm(pe,self.norm_ranges["pe"][0],self.norm_ranges["pe"][1]), 
-                                 self._norm(su,self.norm_ranges["su"][0],self.norm_ranges["su"][1])], axis=0)
+        norm_updates = tf.stack([self._norm(throughput, self.norm_ranges["throughput"][0], self.norm_ranges["throughput"][1]), 
+                                 self._norm(se, self.norm_ranges["se"][0], self.norm_ranges["se"][1]), 
+                                 self._norm(1/pe, 1/self.norm_ranges["pe"][1], 1/self.norm_ranges["pe"][0]), # being minimised - careful in defining ranges to avoid division by zero
+                                 self._norm(su, self.norm_ranges["su"][0], self.norm_ranges["su"][1])], axis=0)
+        
         self.rewards = tf.tensor_scatter_nd_update(self.rewards, indices, tf.reshape(updates, (4,)))
         self.norm_rewards = tf.tensor_scatter_nd_update(self.norm_rewards, indices, tf.reshape(norm_updates, (4,)))
         reward = tf.reduce_sum(norm_updates)
@@ -236,8 +250,9 @@ class SionnaEnv(gym.Env):
         # Iterate over each transmitter
         for tx_id, tx in enumerate(self.transmitters.values()):
             # Normalize transmitter position
-            norm_tx_x = self._norm(tx["position"][1], 0, self.valid_area.shape[1])
-            norm_tx_y = self._norm(tx["position"][0], 0, self.valid_area.shape[0])
+
+            norm_tx_x = self._norm(tx["position"][0], self.global_min[0], self.global_max[1]) # Global system is in x,y,z, coverage map is in y,x 
+            norm_tx_y = self._norm(tx["position"][1], self.global_min[0], self.global_max[1])
 
             # Normalize power level (assuming min/max power are defined)
             norm_tx_power = self._norm(tx["sharing_power"], self.cfg.min_power, self.cfg.max_power)
@@ -249,8 +264,8 @@ class SionnaEnv(gym.Env):
             sharing_ues = []
 
             for user_id, user in enumerate(self.users.values()):
-                x = user["position"][1]#.numpy()
-                y = user["position"][0]#.numpy()
+                x = user["position"][1] # uses the coverage map coordinate system
+                y = user["position"][0]
 
                 norm_x = self._norm(x, 0, self.valid_area.shape[1])
                 norm_y = self._norm(y, 0, self.valid_area.shape[0])
@@ -263,22 +278,23 @@ class SionnaEnv(gym.Env):
                     index = min(self.sharing_sinr_map.shape[0] - 1, tx_id)
                     sharing_sinr = [self._norm((10 * tf.math.log(self.sharing_sinr_map[index][y][x]) / tf.math.log(10.0)).numpy(), -100, 100)]
 
-                # Normalize BLER (assuming 0-1 range)
+                # Using rate instead of BLER
                 if self.rates is None:
-                    norm_bler = self._norm(1, 0, 1)
+                    rate = np.array([0, 0], dtype=np.float32)
                 else:
-                    norm_bler = self._norm(tf.reduce_sum(self.rates[tx_id,:,user_id]).numpy(), 0, 1)
+                    rate = self.rates[tx_id,:,user_id].numpy() # note: this is probably being mapped to too small a range below in normalisation
+
 
                 # Construct UE observation dictionary
                 prim = {
                     "ue_pos": np.array([norm_x, norm_y]),
                     "ue_sinr": np.array(primary_sinr),
-                    "ue_bler": np.array(norm_bler),
+                    "ue_rate": np.array(self._norm(rate[0], self.norm_ranges["throughput"][0] * 1e6, self.norm_ranges["throughput"][1] * 1e6)), # normalised with max aggregate not max UE
                 }
                 shar = {
                     "ue_pos":  np.array([norm_x, norm_y]),
                     "ue_sinr":  np.array(sharing_sinr),
-                    "ue_bler": np.array(norm_bler),
+                    "ue_rate": np.array(self._norm(rate[1], self.norm_ranges["throughput"][0] * 1e6, self.norm_ranges["throughput"][1] * 1e6)),
                 }
 
                 primary_ues.append(prim)
@@ -295,7 +311,7 @@ class SionnaEnv(gym.Env):
 
             state.append(tx_obs)
 
-# Need to fix either the state or the get_obs for how the bler, sinr etc are added
+        # Need to fix either the state or the get_obs for how the bler, sinr etc are added
 
         return state
     

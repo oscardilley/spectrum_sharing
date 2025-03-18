@@ -74,6 +74,7 @@ class FullSimulator:
         """ Initialising the scene. """
         self.scene = self._create_scene()
         self.center_transform = np.round(np.array([self.scene.center.numpy()[0], self.scene.center.numpy()[1], 0]))
+        self.global_size = self.scene.size.numpy()
         self.cm, area = self._coverage_map(init=True) # used to determine all possible valid areas
         self.cm, self.sinr = self._coverage_map(init=False) # correcting power levels
         self.grid = self._validity_matrix(self.cm.num_cells_x, self.cm.num_cells_y, area)
@@ -230,7 +231,9 @@ class FullSimulator:
         time_step = (self.batch_size / self.simulator.pusch_config.carrier.num_slots_per_frame) * self.simulator.pusch_config.carrier.frame_duration
         max_rate_per_ue = max_data_sent_per_ue / time_step # in order to account for different numerologies
         rates = [(1 - bler) * max_rate_per_ue for bler in blers]
-        # logger.warning(f"Rates: {rates}")
+
+        # NEED TO REWORK THIS - single primary connection and multiple secondary connections - common for dual connectivity
+        # Need to think again about scheduling - do we really want to do maximal scheduling - how does RR/ proportional fair work?
 
         results = {"bler": tf.stack(blers), "sinr": tf.stack(sinrs), "rate": tf.stack(rates)}
 
@@ -275,8 +278,7 @@ class FullSimulator:
         if len(self.scene.receivers) == 0:
             # Adding receivers for the first time. 
             for rx_id, rx in enumerate(receivers.values()):
-                # reversed_coords = np.array([rx["position"].numpy()[1],rx["position"].numpy()[0], rx["position"].numpy()[2]])
-                reversed_coords = np.array([rx["position"][1],rx["position"][0], rx["position"][2]])
+                reversed_coords = np.array([rx["position"][1], rx["position"][0], rx["position"][2]])
                 pos = (reversed_coords * self.cell_size) - np.array([round(max_x/2), round(max_y/2), 0]) + self.center_transform
                 self.scene.add(Receiver(name=f"rx{rx_id}",
                                         position=pos, 
@@ -286,15 +288,14 @@ class FullSimulator:
 
         else:
             for rx_id, rx in enumerate(receivers.values()):
-                # reversed_coords = np.array([rx["position"].numpy()[1],rx["position"].numpy()[0], rx["position"].numpy()[2]])
-                reversed_coords = np.array([rx["position"][1],rx["position"][0], rx["position"][2]])
+                reversed_coords = np.array([rx["position"][1], rx["position"][0], rx["position"][2]])
                 pos = (reversed_coords * self.cell_size) - np.array([round(max_x/2), round(max_y/2), 0]) + self.center_transform
                 self.scene.receivers[f"rx{rx_id}"].position = pos
                 sinr_db = 10 * tf.math.log(self.sinr[:,rx["position"][0], rx["position"][1]]) / tf.math.log(10.0)
                 per_rx_sinr_db.append(sinr_db)    
         self.receivers = receivers
 
-        return tf.concat(per_rx_sinr_db, axis=0) 
+        return tf.reshape(tf.transpose(tf.stack(per_rx_sinr_db)) , [-1])
     
     def reset(self):
         """ Resetting the simulator."""

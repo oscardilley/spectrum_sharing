@@ -13,6 +13,7 @@ from time import perf_counter
 from hydra import compose, initialize 
 import numpy as np
 import os
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2' # INFO and WARNING not displayed
 import matplotlib.pyplot as plt
 
 from spectrum_sharing.RL_simulator import SionnaEnv
@@ -24,7 +25,7 @@ def main(cfg):
     """Run the simulator."""
     # Starting simulator
     env = SionnaEnv(cfg)
-    buffer = ReplayBuffer(cfg.buffer_max_size, cfg.log_path)
+    buffer = ReplayBuffer(cfg.buffer_max_size, cfg.buffer_path)
     agent = Agent(cfg,
                   num_tx=len(cfg.transmitters),
                   observation_space=env.observation_space,

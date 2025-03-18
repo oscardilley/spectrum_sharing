@@ -8,6 +8,7 @@ max_results_length: 10 # for plotting
 images_path: "/home/ubuntu/spectrum_sharing/spectrum_sharing/Simulations/"
 log_path: "/home/ubuntu/spectrum_sharing/spectrum_sharing/Logging/"
 models_path: "/home/ubuntu/spectrum_sharing/spectrum_sharing/Models/"
+buffer_path: "/home/ubuntu/spectrum_sharing/spectrum_sharing/Buffer/"
 test_models_path: "/home/ubuntu/spectrum_sharing/spectrum_sharing/TestModels/"
 scene_path: "/home/ubuntu/spectrum_sharing/spectrum_sharing/Scene/BRISTOL_3/"
 
