@@ -93,6 +93,7 @@ class ChannelSimulator(tf.keras.Model):
         M = np.array(self.pusch_config.tb.num_bits_per_symbol)
         R = np.array(self.pusch_config.tb.target_coderate)
         ebno = sinr - (10 * np.log10(R * M)) # SINR to EbNo conversion
+        print(f"EBNO: {ebno}")
         self.sinr = sinr
         self.sinr_no = tf.convert_to_tensor([ebnodb2no(item,
             self.pusch_transmitter._num_bits_per_symbol, 
@@ -110,7 +111,8 @@ class ChannelSimulator(tf.keras.Model):
     # Do not use @tf.function as attributes will not update
     def call(self, block_size):
         self.x, self.b = self.pusch_transmitter(block_size)  
-
+        print(f"SINR NO: {self.sinr_no}")
+        print(self.sinr_no.shape)
         bler_per_link = tf.map_fn(self.iterate, elems=(self.h_freq, self.sinr_no), fn_output_signature=tf.float64)
  
         return tf.reshape(bler_per_link, (self.num_tx, self.num_rx)), tf.reshape(self.sinr, (self.num_tx, self.num_rx))

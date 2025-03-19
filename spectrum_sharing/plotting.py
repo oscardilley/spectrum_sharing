@@ -55,7 +55,7 @@ def plot_rewards(episode,
                  save_path="/home/ubuntu/spectrum_sharing/Simulations/"):
     """ Plot reward functions over time."""
     # Axis initialisation
-    reward_labels = ["Total Throughput [MHz]", "Spectral Efficiency [bits/s/Hz]", "Power Efficiency [W/MHz]", "Spectrum Utility [bits/s/Hz]"]
+    reward_labels = ["Total Throughput [MHz]", "Spectral Efficiency [bits/s/Hz]", "Power Efficiency [W/Hz]", "Spectrum Utility [bits/s/Hz]"]
     reward_titles = ["Total Throughput", "Spectral Efficiency", "Power Efficiency", "Spectrum Utility"]
     fig, axes = plt.subplots(2, 2, figsize=(15, 10), constrained_layout=True)
     cmap = plt.get_cmap("tab10", rewards.shape[1])
@@ -84,6 +84,7 @@ def plot_motion(step,
                 users, 
                 transmitters, 
                 cell_size, 
+                sinr_range=[-100,100],
                 fig=None, 
                 ax=None, 
                 save_path="/home/ubuntu/spectrum_sharing/Simulations/"):
@@ -126,7 +127,7 @@ def plot_motion(step,
 
     # Plotting the coverage map
     cm_db = 10 * tf.math.log(cm) / tf.math.log(10.0)
-    map = ax.imshow(cm_db, cmap=color, origin='lower', alpha=0.7, extent=[0, x_max, 0, y_max], vmin=-100, vmax=100)
+    map = ax.imshow(cm_db, cmap=color, origin='lower', alpha=0.7, extent=[0, x_max, 0, y_max], vmin=sinr_range[0], vmax=sinr_range[1])
     if step == 0:
         cbar = fig.colorbar(map, ax=ax, shrink=0.8)
         cbar.set_label("SINR [dB]", fontsize=40) 

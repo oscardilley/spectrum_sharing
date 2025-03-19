@@ -5,9 +5,6 @@ Wrapping Sionna logic inside a gymnasium wrapper for reinforcement learning.
 """
 
 import tensorflow as tf
-import sionna
-from time import perf_counter
-from hydra import compose, initialize 
 import numpy as np
 import gymnasium as gym
 from gymnasium import spaces
@@ -32,7 +29,11 @@ class SionnaEnv(gym.Env):
         self.sharing_bandwidth = self.cfg.primary_fft_size * self.cfg.primary_subcarrier_spacing
         self.primaryBands = {}
         self.initial_states = {}
-        self.norm_ranges= {"throughput": (0, 30), "se": (0, 6), "pe": (1e-7, 1e-6), "su": (0, 6)}
+        self.norm_ranges= {"throughput": (0, 30), # automate this generation based on theoretical calculations
+                           "se": (0, 6), 
+                           "pe": (1e-7, 2e-6),
+                           "su": (0, 6),
+                           "sinr": (self.cfg.min_sinr, self.cfg.max_sinr)} 
 
         # Set up gym standard attributes
         self.truncated = False
@@ -67,7 +68,8 @@ class SionnaEnv(gym.Env):
 
         for id, tx in enumerate(self.transmitters.values()):
             self.initial_states["PrimaryBand"+str(id)] = tf.cast(tf.one_hot(id, self.num_tx, dtype=tf.int16), dtype=tf.bool)
-            self.primaryBands["PrimaryBand"+str(id)] = FullSimulator(prefix="primary",
+            self.primaryBands["PrimaryBand"+str(id)] = FullSimulator(cfg=self.cfg,
+                                                                     prefix="primary",
                                                                      scene_name= cfg.scene_path + "simple_OSM_scene.xml", #sionna.rt.scene.simple_street_canyon,
                                                                      carrier_frequency=tx["primary_carrier_freq"],
                                                                      bandwidth=self.primary_bandwidth,
@@ -83,20 +85,21 @@ class SionnaEnv(gym.Env):
                                                                      )
             
         # Setting up the sharing band
-        self.sharingBand = FullSimulator(prefix="sharing",
-                                    scene_name=cfg.scene_path + "simple_OSM_scene.xml",
-                                    carrier_frequency=self.cfg.sharing_carrier_freq,
-                                    bandwidth=self.sharing_bandwidth,
-                                    pmax=50, # maximum power
-                                    transmitters=self.transmitters,
-                                    num_rx = self.cfg.num_rx,
-                                    max_depth=self.cfg.max_depth,
-                                    cell_size=self.cfg.cell_size,
-                                    initial_state = self.sharing_state,
-                                    subcarrier_spacing = self.cfg.sharing_subcarrier_spacing,
-                                    fft_size = self.cfg.sharing_fft_size,
-                                    batch_size=self.cfg.batch_size,
-                                    )
+        self.sharingBand = FullSimulator(cfg=self.cfg,
+                                         prefix="sharing",
+                                          scene_name=cfg.scene_path + "simple_OSM_scene.xml",
+                                         carrier_frequency=self.cfg.sharing_carrier_freq,
+                                         bandwidth=self.sharing_bandwidth,
+                                         pmax=50, # maximum power
+                                         transmitters=self.transmitters,
+                                         num_rx = self.cfg.num_rx,
+                                         max_depth=self.cfg.max_depth,
+                                         cell_size=self.cfg.cell_size,
+                                         initial_state = self.sharing_state,
+                                         subcarrier_spacing = self.cfg.sharing_subcarrier_spacing,
+                                         fft_size = self.cfg.sharing_fft_size,
+                                         batch_size=self.cfg.batch_size,
+                                         )
         global_centre = self.sharingBand.center_transform
         self.global_max = (global_centre[0:2] + (self.sharingBand.global_size[0:2]  / 2)).astype(int)
         self.global_min = (global_centre[0:2] - (self.sharingBand.global_size[0:2]  / 2)).astype(int)
@@ -166,11 +169,6 @@ class SionnaEnv(gym.Env):
         primaryOutputs = [primaryBand(self.users, state, self.transmitters) for primaryBand, state in zip(self.primaryBands.values(), self.initial_states.values())]
         sharingOutput = self.sharingBand(self.users, self.sharing_state, self.transmitters, self.timestep, self.cfg.images_path)
 
-        # Printing simulation details:
-        # if self.timestep == 1:
-        #     [band.simulator.pusch_config.show() for band in self.primaryBands.values()]
-        #     self.sharingBand.simulator.pusch_config.show()
-
         # Updating SINR maps
         self.primary_sinr_maps = [primaryBand.sinr for primaryBand in self.primaryBands.values()]    
         self.sharing_sinr_map = self.sharingBand.sinr
@@ -203,9 +201,7 @@ class SionnaEnv(gym.Env):
                                   self.sharing_bandwidth,
                                   self.sharing_state,
                                   throughput)
-        
-        # Plotting objectives/ rewards
-        indices = tf.constant([[self.timestep, 0], [self.timestep, 1], [self.timestep, 2], [self.timestep, 3]])
+    
 
         # Checking validity of values before performing normalisation:
         if not (self.norm_ranges["throughput"][0] <= throughput <= self.norm_ranges["throughput"][1]):
@@ -217,15 +213,18 @@ class SionnaEnv(gym.Env):
         if not (self.norm_ranges["su"][0] <= su <= self.norm_ranges["su"][1]):
             raise ValueError(f"SU value {su} is out of range: {self.norm_ranges['su']}")
 
+        # Processing the reward for the agent
         updates = tf.stack([throughput, 
                             se, 
                             pe, 
                             su], axis=0)
+        print(f"Rewards: {updates}")
         norm_updates = tf.stack([self._norm(throughput, self.norm_ranges["throughput"][0], self.norm_ranges["throughput"][1]), 
                                  self._norm(se, self.norm_ranges["se"][0], self.norm_ranges["se"][1]), 
                                  self._norm(1/pe, 1/self.norm_ranges["pe"][1], 1/self.norm_ranges["pe"][0]), # being minimised - careful in defining ranges to avoid division by zero
                                  self._norm(su, self.norm_ranges["su"][0], self.norm_ranges["su"][1])], axis=0)
         
+        indices = tf.constant([[self.timestep, 0], [self.timestep, 1], [self.timestep, 2], [self.timestep, 3]]) # used for updating preallocated tensor
         self.rewards = tf.tensor_scatter_nd_update(self.rewards, indices, tf.reshape(updates, (4,)))
         self.norm_rewards = tf.tensor_scatter_nd_update(self.norm_rewards, indices, tf.reshape(norm_updates, (4,)))
         reward = tf.reduce_sum(norm_updates)
@@ -244,8 +243,7 @@ class SionnaEnv(gym.Env):
 
     def _get_obs(self):
         """ Getting the data for the current state. """
-         # Adding normalised values to the state array
-        state = []
+        state = [] # Adding normalised values to the state array
 
         # Iterate over each transmitter
         for tx_id, tx in enumerate(self.transmitters.values()):
@@ -271,12 +269,12 @@ class SionnaEnv(gym.Env):
                 norm_y = self._norm(y, 0, self.valid_area.shape[0])
 
                 # Convert SINR to dB and normalize
-                primary_sinr = [self._norm((10 * tf.math.log(self.primary_sinr_maps[tx_id][0][y][x]) / tf.math.log(10.0)).numpy(), -100, 100)]
+                primary_sinr = [self._norm((10 * tf.math.log(self.primary_sinr_maps[tx_id][0][y][x]) / tf.math.log(10.0)).numpy(), self.norm_ranges["sinr"][0], self.norm_ranges["sinr"][1])]
                 if tx_on_off == 0:
-                    sharing_sinr = [self._norm((10 * tf.math.log(0.0) / tf.math.log(10.0)).numpy(), -100, 100)]
+                    sharing_sinr = [self._norm((10 * tf.math.log(0.0) / tf.math.log(10.0)).numpy(), self.norm_ranges["sinr"][0], self.norm_ranges["sinr"][1])]
                 else:
                     index = min(self.sharing_sinr_map.shape[0] - 1, tx_id)
-                    sharing_sinr = [self._norm((10 * tf.math.log(self.sharing_sinr_map[index][y][x]) / tf.math.log(10.0)).numpy(), -100, 100)]
+                    sharing_sinr = [self._norm((10 * tf.math.log(self.sharing_sinr_map[index][y][x]) / tf.math.log(10.0)).numpy(), self.norm_ranges["sinr"][0], self.norm_ranges["sinr"][1])]
 
                 # Using rate instead of BLER
                 if self.rates is None:
@@ -346,6 +344,7 @@ class SionnaEnv(gym.Env):
                                              users=self.users, 
                                              transmitters=self.transmitters, 
                                              cell_size=self.cfg.cell_size, 
+                                             sinr_range=self.norm_ranges["sinr"],
                                              fig=self.fig_0,
                                              ax=self.ax_0, 
                                              save_path=self.cfg.images_path)
@@ -359,6 +358,7 @@ class SionnaEnv(gym.Env):
                                                                        users=self.users, 
                                                                        transmitters=self.transmitters, 
                                                                        cell_size=self.cfg.cell_size, 
+                                                                       sinr_range=self.norm_ranges["sinr"],
                                                                        fig=self.primary_figs[id],
                                                                        ax=self.primary_axes[id], 
                                                                        save_path=self.cfg.images_path)

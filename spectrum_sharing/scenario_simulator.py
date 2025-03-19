@@ -20,6 +20,7 @@ class FullSimulator:
     Docs coming soon ...
     """
     def __init__(self,
+                 cfg,
                  prefix,
                  scene_name,
                  carrier_frequency,
@@ -37,6 +38,7 @@ class FullSimulator:
                  ):
         
         # Configuration attributes
+        self.cfg = cfg
         self.prefix = prefix
         self.scene_name = scene_name
         self.carrier_frequency = carrier_frequency
@@ -61,6 +63,8 @@ class FullSimulator:
                                           self.num_rx, 
                                           self.subcarrier_spacing,
                                           self.fft_size)
+        # logger.info("Displaying the PUSCH configuration in the terminal.")
+        # self.simulator.pusch_config.show()
 
         # Creating the scene
         self.scene= None
@@ -68,6 +72,7 @@ class FullSimulator:
         self.sinr = None
         self.grid = None
         self._scene_init()
+
 
 
     def _scene_init(self):
@@ -172,7 +177,6 @@ class FullSimulator:
         self.cm, self.sinr = self._coverage_map() 
 
         if np.all(self.state.numpy() == False):
-
             for state in self.state:
                 logger.warning("Skipping calculation as all states are False.")
                 blers.append(tf.ones(self.num_rx, dtype=tf.float64))
@@ -181,11 +185,11 @@ class FullSimulator:
             results = {"bler": tf.stack(blers), "sinr": tf.stack(sinrs), "rate": tf.stack(rates)}
         
             return results
-
+        
+        print(f"Scene: {self.prefix}")
 
         # Updating the receivers
         per_rx_sinr = self.update_receivers(receivers)
-
         paths = self.scene.compute_paths(max_depth=self.max_depth, diffraction=True)
         paths.normalize_delays = False
 
@@ -194,11 +198,7 @@ class FullSimulator:
                             #tx_velocities=[self.cell_size * tf.convert_to_tensor(transmitter["direction"], dtype=tf.int64) for transmitter in self.transmitters.values()], # [batch_size, num_tx, 3] shape
                             rx_velocities=[self.cell_size * receiver["direction"] for receiver in receivers.values()]) # [batch_size, num_rx, 3] shape
        
-        a, tau = paths.cir(los=True)
-
-        # print("A and Tau shape:")
-        # print(a.shape, tau.shape)
-        # print(a.dtype, tau.dtype)
+        a, tau = paths.cir(los=True) # generating the channel impulse response
 
         num_active_tx = int(tf.reduce_sum(tf.cast(self.state, tf.int32)))
         self.simulator.update_channel(num_active_tx, a, tau)
@@ -211,15 +211,25 @@ class FullSimulator:
         # total = end - start
         # print(f"Time taken for bit level simulation: {total}")
 
+        # Potential issue in which SINR we are using for the sharing band where there are two transmitters
+
+        
+        print(f"SINR: {sinr}") # correctly matches the per_rx_sinr
+        print(f"BLER: {bler}") 
+
+        # Is the SINR/ BLER being handled correctly when both transmitters are on and it becomes 2D
+
+        # Is the noise variance approximation good enough
+
         # Handling dynamic size of state:
         for state in self.state:
             if bool(state) is True:
                 blers.append(bler[count])
-                sinrs.append(tf.clip_by_value(sinr[count], -1000, 1000))
+                sinrs.append(tf.clip_by_value(sinr[count], self.cfg.min_sinr, self.cfg.max_sinr))
                 count += 1
             else:
                 blers.append(tf.ones(self.num_rx, dtype=tf.float64))
-                sinrs.append(tf.constant(-1000, shape=(self.num_rx), dtype=tf.float32)) # SINR in dB so need to force to -inf
+                sinrs.append(tf.constant(self.cfg.min_sinr, shape=(self.num_rx), dtype=tf.float32)) # SINR in dB so need to force close to -inf
 
         # Calculate the users achieving < 1 BLER to schedule  
         num_scheduled = tf.math.count_nonzero(tf.less(blers, 1)) 
