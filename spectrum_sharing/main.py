@@ -108,9 +108,20 @@ def main(cfg):
     return
 
 if __name__ == "__main__":
+    gpus = tf.config.list_physical_devices('GPU')
+    logger.info('Number of GPUs available :', len(gpus))
+    if gpus:
+        gpu_num = 0 # Index of the GPU to be used
+        try:
+            tf.config.set_visible_devices(gpus[gpu_num], 'GPU')
+            logger.warning('Only GPU number', gpu_num, 'used.')
+            tf.config.experimental.set_memory_growth(gpus[gpu_num], True) # manages memory growth
+        except RuntimeError as e:
+            logger.critical(e)
     with initialize(version_base=None, config_path="conf", job_name="simulation"):
         config = compose(config_name="simulation")
         sionna.config.xla_compat=True
+        # # Use for determinism:
         # sionna.config.seed=config.random_seed
         # tf.random.set_seed(config.random_seed)
         # os.environ['TF_DETERMINISTIC_OPS'] = '1'
