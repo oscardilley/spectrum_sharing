@@ -95,10 +95,10 @@ class ChannelSimulator(tf.keras.Model):
         ebno = sinr - (10 * np.log10(R * M)) # SINR to EbNo conversion
         print(f"EBNO: {ebno}")
         self.sinr = sinr
-        self.sinr_no = tf.convert_to_tensor([ebnodb2no(item,
+        self.sinr_no = tf.clip_by_value(tf.convert_to_tensor([ebnodb2no(item,
             self.pusch_transmitter._num_bits_per_symbol, 
             self.pusch_transmitter._target_coderate, 
-            self.pusch_transmitter.resource_grid) for item in ebno])
+            self.pusch_transmitter.resource_grid) for item in ebno]), 0, 100)
 
     @tf.function(jit_compile=True, reduce_retracing=True)
     def iterate(self, ins):
