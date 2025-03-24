@@ -1,92 +1,95 @@
 # Spectrum Sharing
 
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
-[![Python](https://img.shields.io/badge/python-3.7+-blue.svg)](https://www.python.org/downloads/)
+[![Python](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![NVIDIA Sionna](https://img.shields.io/badge/NVIDIA-Sionna-76B900.svg)](https://github.com/NVlabs/sionna)
 [![OpenAI Gym](https://img.shields.io/badge/OpenAI-Gym-0081A5.svg)](https://github.com/openai/gym)
 [![TensorFlow](https://img.shields.io/badge/TensorFlow-2.x-FF6F00.svg)](https://www.tensorflow.org/)
 
-A dynamic spectrum access research framework that combines NVIDIA Sionna ray tracing with OpenAI Gym compatible environments for training reinforcement learning agents.
-
 ## Table of Contents
-
 - [Overview](#overview)
 - [Features](#features)
-- [Installation](#installation)
-- [Getting Started](#getting-started)
-- [Examples](#examples)
+- [System and Dependencies](#system-and-dependencies)
+- [Installation and Example Run](#installation-and-example-run)
+- [Repo Structure](#repo-structure)
 - [Documentation](#documentation)
-- [Contributing](#contributing)
 - [License](#license)
 - [Citation](#citation)
 
 ## Overview
 
-Spectrum_Sharing creates realistic wireless communications environments using NVIDIA Sionna's ray tracing capabilities and wraps them in OpenAI Gym compatible interfaces. This enables researchers to train and evaluate reinforcement learning agents for dynamic spectrum access scenarios.
+This repo offers a simulator for research into dynamic spectrum access (DSA) and spectrum sharing. Using Sionna for ray-tracing, deterministic wireless conditions are generated. The configurable Sionna simualation is encapsulated as an OpenAI gym environment, enabling a consistent interface for developing and training machine learning models for power control and dynamic spectrum access.
 
 ## Features
 
-- Realistic RF propagation modeling with NVIDIA Sionna ray tracing
-- OpenAI Gym compatible environment interfaces
+- 5G compliant, deterministic wireless simulations with NVIDIA Sionna.
+- Configurable from top-level Hydra configuration file. 
+- OpenAI Gym compatible environment interfaces.
+- Modular to enable different scenarios.
+- Inbuilt plotting and visualisation.
 - Configurable spectrum sharing scenarios
-- Built-in reinforcement learning agent implementations
-- Visualization tools for environment and agent performance
-- Extensible framework for custom scenarios and algorithms
+- Extensible for custom scenarios and algorithms
 
-## Installation
+## System and Dependencies
+- Versions using Sionna v0.19.0 have sensitive pip dependencies, found in requirements.txt
+- Python 3.10 is advised.
+- Ubuntu 22.04 is advised.
+- Tested on NVIDIA A100, L40 and A40 with CUDA 12.4 and Driver Version: 550.XXX.XX. Known issues with later and earlier drivers due to OptiX clashing with required versions of Mitsuba and DrJit.
+
+## Installation and Example Run
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/spectrum_sharing.git
+git clone https://github.com/oscardilley/spectrum_sharing.git
 cd spectrum_sharing
 
 # Install dependencies
-pip install -e .
+python3.10 -m venv .venv # create a virtual environment
+source .venv/bin/activate # activate the venv
+pip install -r requirements.txt
+python3 -m spectrum_sharing.main 
 ```
 
-## Getting Started
+- What to do next ... what to check and what to see
 
-```python
-import gymnasium as gym
-import spectrum_sharing
+## Repo Structure
 
-# Create a spectrum sharing environment
-env = gym.make('spectrum-sharing-v0')
-
-# Reset the environment
-observation, info = env.reset()
-
-# Interact with the environment
-for _ in range(1000):
-    action = env.action_space.sample()  # Your agent's policy here
-    observation, reward, terminated, truncated, info = env.step(action)
-    
-    if terminated or truncated:
-        observation, info = env.reset()
+```bash
+├── LICENSE
+├── README.md
+├── logging
+│   └── app.log
+├── requirements.txt
+├── setup.py
+└── spectrum_sharing
+    ├── Archive
+    ├── Buffer
+    │   └── buffer.pickle
+    ├── DQN_agent.py
+    ├── Models
+    ├── RL_simulator.py
+    ├── Scene
+    ├── Simulations
+    ├── TestModels
+    ├── __init__.py
+    ├── __main__.py
+    ├── benchmark.py
+    ├── benchmarks.sh
+    ├── channel_simulator.py
+    ├── conf
+    │   └── simulation.yaml
+    ├── image_to_video.py
+    ├── logger.py
+    ├── main.py
+    ├── plotting.py
+    ├── scenario_simulator.py
+    └── utils.py
 ```
-
-## Examples
-
-See the [examples](./examples) directory for detailed usage examples:
-
-- Basic environment interaction
-- Training a DQN agent
-- Custom scenario configuration
-- Visualization and analysis
+- Describe the main modules
 
 ## Documentation
 
-Comprehensive documentation is available at [docs/index.md](docs/index.md).
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
-
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+Comprehensive documentation coming soon...
 
 ## License
 
@@ -98,7 +101,7 @@ If you use this code in your research, please cite:
 
 ```bibtex
 @software{spectrum_sharing,
-  author = {Your Name},
+  author = {Oscar Dilley},
   title = {Spectrum Sharing: A Dynamic Spectrum Access Research Framework},
   year = {2025},
   url = {https://github.com/yourusername/spectrum_sharing}
