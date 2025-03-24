@@ -18,6 +18,7 @@
 ## Overview
 
 This repo offers a simulator for research into dynamic spectrum access (DSA) and spectrum sharing. Using Sionna for ray-tracing, deterministic wireless conditions are generated. The configurable Sionna simualation is encapsulated as an OpenAI gym environment, enabling a consistent interface for developing and training machine learning models for power control and dynamic spectrum access.
+![Repo concept](https://github.com/user-attachments/assets/d2310f48-8223-4735-8128-dc898fb5dce7)
 
 ## Features
 
@@ -49,9 +50,11 @@ pip install -r requirements.txt
 python3 -m spectrum_sharing.main 
 ```
 
-- What to do next ... what to check and what to see
+The above block runs _main.py_ which 
 
 ## Repo Structure
+
+![repo structure](https://github.com/user-attachments/assets/30b186e2-be65-478c-8b2e-af67808b4118)
 
 ```bash
 ├── LICENSE
@@ -84,7 +87,13 @@ python3 -m spectrum_sharing.main
     ├── scenario_simulator.py
     └── utils.py
 ```
-- Describe the main modules
+You could benefit from this repo as follows:
+- Implement a new RL algorithm by replacing _DQN_agent.py_ in _main.py_ with another agent for the same observation and action space.
+- Change the agent as above and the observation and action space by modifying/ replacing _DQN_agent.py_ and _RL_simulator.py_.
+- Implement your own scheduler in _scenario_simulator.py_.
+- Modify the system parameters in _conf/simulation.yaml_.
+- Add a new mobility model in _utils.py_.
+- Change the model rewards in _RL_simulator.py_.
 
 ## Documentation
 
