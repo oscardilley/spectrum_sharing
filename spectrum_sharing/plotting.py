@@ -9,6 +9,36 @@ import matplotlib as mpl
 import tensorflow as tf
 import numpy as np
 
+def prop_fair_plotter(timestep, 
+                      tx,
+                      grid_alloc, 
+                      num_users,
+                      save_path="/home/ubuntu/spectrum_sharing/Simulations/"):
+    """
+    Plot the resource allocation grid with a color for each user.
+    
+    Parameters:
+      grid_alloc: 2D numpy array with user IDs allocated for each RB.
+      num_users: total number of users (used for the color mapping).
+    """
+    # Create a figure and axis
+    fig, ax = plt.subplots(figsize=(12, 6))
+    
+    # Use a colormap with at least 20 distinct colours; 'tab20' supports 20 colours.
+    cmap = plt.get_cmap('tab20', num_users)
+    cax = ax.imshow(grid_alloc, aspect='auto', cmap=cmap)
+    
+    # Add a colorbar and label the ticks with user IDs.
+    cbar = fig.colorbar(cax, ticks=range(num_users))
+    cbar.ax.set_yticklabels([f"User {i}" for i in range(num_users)])
+    
+    ax.set_xlabel('Resource Block Index')
+    ax.set_ylabel('Time Slot Index')
+    ax.set_title(f'Resource Block Allocation over 1 Second, for TX {tx}, time {timestep}')
+    fig.savefig(save_path + f"Scheduler for TX {tx}, time {timestep}.png", dpi=400)
+    plt.close()
+
+
 def plot_total_rewards(episode,
                        reward,
                        reward_min,

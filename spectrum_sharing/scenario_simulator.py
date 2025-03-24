@@ -11,6 +11,7 @@ from time import perf_counter
 
 from spectrum_sharing.channel_simulator import ChannelSimulator
 from spectrum_sharing.logger import logger
+from spectrum_sharing.plotting import prop_fair_plotter
 
 
 class FullSimulator:
@@ -63,8 +64,8 @@ class FullSimulator:
                                           self.num_rx, 
                                           self.subcarrier_spacing,
                                           self.fft_size)
-        # logger.info("Displaying the PUSCH configuration in the terminal.")
-        # self.simulator.pusch_config.show()
+        logger.info("Displaying the PUSCH configuration in the terminal.")
+        self.simulator.pusch_config.show()
 
         # Creating the scene
         self.scene= None
@@ -83,6 +84,7 @@ class FullSimulator:
         self.cm, area = self._coverage_map(init=True) # used to determine all possible valid areas
         self.cm, self.sinr = self._coverage_map(init=False) # correcting power levels
         self.grid = self._validity_matrix(self.cm.num_cells_x, self.cm.num_cells_y, area)
+        self.avg_throughput = np.zeros(self.num_rx) # used for scheduling
         return
 
     
@@ -180,13 +182,11 @@ class FullSimulator:
             for state in self.state:
                 logger.warning("Skipping calculation as all states are False.")
                 blers.append(tf.ones(self.num_rx, dtype=tf.float64))
-                sinrs.append(tf.constant(-1000, shape=(self.num_rx), dtype=tf.float32))
+                sinrs.append(tf.constant(self.cfg.min_sinr, shape=(self.num_rx), dtype=tf.float32))
                 rates.append(tf.zeros(shape=(self.num_rx), dtype=tf.float32))
             results = {"bler": tf.stack(blers), "sinr": tf.stack(sinrs), "rate": tf.stack(rates)}
         
             return results
-        
-        print(f"Scene: {self.prefix}")
 
         # Updating the receivers
         per_rx_sinr = self.update_receivers(receivers)
@@ -205,21 +205,11 @@ class FullSimulator:
         self.simulator.update_sinr(per_rx_sinr)
 
         # Bit level simulation
-        # start = perf_counter()
+        start = perf_counter()
         bler, sinr = self.simulator(block_size=self.batch_size)
-        # end = perf_counter()
-        # total = end - start
-        # print(f"Time taken for bit level simulation: {total}")
-
-        # Potential issue in which SINR we are using for the sharing band where there are two transmitters
-
-        
-        print(f"SINR: {sinr}") # correctly matches the per_rx_sinr
-        print(f"BLER: {bler}") 
-
-        # Is the SINR/ BLER being handled correctly when both transmitters are on and it becomes 2D
-
-        # Is the noise variance approximation good enough
+        end = perf_counter()
+        total = end - start
+        logger.info(f"Time taken for bit level simulation: {total}")
 
         # Handling dynamic size of state:
         for state in self.state:
@@ -231,47 +221,47 @@ class FullSimulator:
                 blers.append(tf.ones(self.num_rx, dtype=tf.float64))
                 sinrs.append(tf.constant(self.cfg.min_sinr, shape=(self.num_rx), dtype=tf.float32)) # SINR in dB so need to force close to -inf
 
+
         # Calculate the users achieving < 1 BLER to schedule  
-        num_scheduled = tf.math.count_nonzero(tf.less(blers, 1)) 
+        num_scheduled = tf.math.count_nonzero(tf.less(blers, 1)) # number that have a connection at all
         if num_scheduled.numpy() == 0:
             logger.warning("Transmitters on but all BLER = 1.")
-            max_data_sent_per_ue = 0 
+            max_data_sent_per_ue = 0 # none could be scheduled 
+            rates = [(1 - bler) * max_data_sent_per_ue for bler in blers]
         else:
-            max_data_sent_per_ue = (self.simulator.pusch_config.tb_size * self.batch_size) / num_scheduled # bits
-        time_step = (self.batch_size / self.simulator.pusch_config.carrier.num_slots_per_frame) * self.simulator.pusch_config.carrier.frame_duration
-        max_rate_per_ue = max_data_sent_per_ue / time_step # in order to account for different numerologies
-        rates = [(1 - bler) * max_rate_per_ue for bler in blers]
+            # Transport block here tells us the number of bits per slot, for 1 PRB/RB over 14 OFDM symbols
+            # 14 OFDM symbols per slot typically
+            # There is a variable number of slots per subframe, 1 at 15kHz, 2 at 30kHz, etc. 2^u where u is the numerology 
+            # A subframe is always 1ms annd there are 10ms in a frame.
+            # 12 subcarriers per PRB, TDD is applied within a slot at the OFDM level
+            # n_size_grid gives number of resource blocks in the carrier resource grid, each 1 OFDM symbol wide
+            # target_coderate gives us the number of information bits/total 
+            # num_resource_blocks is the number of blocks allocated for the PUSCH transmissions, we can only schedule 
+            # num_res_per_prb gives the number of resource elements per PRB available for data.
 
-        # NEED TO REWORK THIS - single primary connection and multiple secondary connections - common for dual connectivity
-        # Need to think again about scheduling - do we really want to do maximal scheduling - how does RR/ proportional fair work?
+            # Calculates instantaneous max data rate, accounting for the numerology - same for all users as not changing MCS and therefore not changing TB size
+            max_data_rate = (self.simulator.pusch_config.tb_size * self.simulator.pusch_config.carrier.num_slots_per_frame) / self.simulator.pusch_config.carrier.frame_duration
 
-        results = {"bler": tf.stack(blers), "sinr": tf.stack(sinrs), "rate": tf.stack(rates)}
+            # Proportional fair scheduler approximation, assuming single user MIMO and 1000 slots as we are stepping in 1s increments of 1s
+            num_slots = (self.simulator.pusch_config.carrier.num_slots_per_frame * 1000) / 10 # 1000 for u=0, 2000 for u=1, etc. 
+            number_rbs = self.simulator.pusch_config.carrier.n_size_grid # number of resource blocks in the carrier resource grid
+            max_data_sent_per_rb = max_data_rate / (num_slots * number_rbs) # bits per RB over 14 OFDM symbols
 
-        # Only saving if timestep is provided (sharing band only):
-        # if timestep is not None:
-        #     self.scene.render_to_file(camera="cam1",
-        #                             filename=str(path)+f"Camera 1 Step {timestep}.png",
-        #                             paths=paths,
-        #                             show_paths=True,
-        #                             show_devices=True,
-        #                             #coverage_map=self.cm,
-        #                             cm_db_scale=True,
-        #                             cm_vmin=-100,
-        #                             cm_vmax=100,
-        #                             resolution=[1920,1080],
-        #                             fov=55)
-        #     self.scene.render_to_file(camera="cam2",
-        #                             filename=str(path)+f"Camera 2 Step {timestep}.png",
-        #                             paths=paths,
-        #                             show_paths=True,
-        #                             show_devices=True,
-        #                             #coverage_map=self.cm,
-        #                             cm_db_scale=True,
-        #                             cm_vmin=-100,
-        #                             cm_vmax=100,
-        #                             resolution=[1920,1080],
-        #                             fov=55)
-                                    
+            # Run the PF scheduler
+            for tx in range(len(blers)):
+                grid_alloc, rate = self.proportional_fair_scheduler(
+                    blers[tx], max_data_sent_per_rb, num_slots, number_rbs, alpha=0.1
+                )
+
+                if timestep is not None:
+                    prop_fair_plotter(timestep, 
+                                      tx,
+                                      grid_alloc, 
+                                      self.num_rx, 
+                                      save_path=self.cfg.images_path)
+                rates.append(tf.convert_to_tensor(rate))
+
+        results = {"bler": tf.stack(blers), "sinr": tf.stack(sinrs), "rate": tf.stack(rates)}                               
 
         return results
 
@@ -293,7 +283,7 @@ class FullSimulator:
                 self.scene.add(Receiver(name=f"rx{rx_id}",
                                         position=pos, 
                                         color=rx["color"],)) 
-                sinr_db = 10 * tf.math.log(self.sinr[:,rx["position"][0], rx["position"][1]]) / tf.math.log(10.0)
+                sinr_db = 10 * tf.math.log(self.sinr[:,rx["position"][0], rx["position"][1]]) / tf.math.log(10.0) # log of zero will occur here, causing inf, clipped later
                 per_rx_sinr_db.append(sinr_db)                        
 
         else:
@@ -306,6 +296,70 @@ class FullSimulator:
         self.receivers = receivers
 
         return tf.reshape(tf.transpose(tf.stack(per_rx_sinr_db)) , [-1])
+    
+    def proportional_fair_scheduler(self, blers, max_data_sent_per_rb, num_slots, number_rbs, alpha=0.2, disconnect=0.95):
+        """
+        Schedule RBs to users using proportional fair scheduling, 
+        while excluding users with no connection (BLER>disconnect).
+        
+        Parameters:
+        blers: ID tensor of blers for each user.
+        max_data_sent_per_rb: maximum bits per RB (given the numerology etc.).
+        num_slots: total number of time slots in 1 second.
+        number_rbs: number of resource blocks per slot.
+        alpha: EWMA weight for throughput update, a smaller alpha remembers the past more
+        
+        Returns:
+        grid_alloc: 2D numpy array (time slots x RBs) with allocated user IDs.
+        avg_throughput: final average throughput for each user.
+        """
+        blers = blers.numpy()
+        num_users = len(blers)
+        
+        # Compute the instantaneous rate per RB for each user.
+        # If BLER > 0.9 (no connection), instantaneous rate is 0.
+        instantaneous_rates = np.array([
+            (1 - bler) * max_data_sent_per_rb if bler < disconnect else 0.0
+            for bler in blers
+        ])
+        
+        # Create a grid to hold the scheduling decision for each RB.
+        grid_alloc = np.zeros((int(num_slots), int(number_rbs)), dtype=int)
+        
+        # To accumulate the bits sent to each user.
+        bits_sent_per_user = np.zeros(num_users)
+        
+        # Simulate scheduling over each resource block in the grid.
+        for t in range(int(num_slots)):
+            for rb in range(int(number_rbs)):
+                # Compute PF metrics; if a user's instantaneous rate is zero (no connection),
+                # assign a very low metric so it is never scheduled.
+                pf_metrics = np.where(instantaneous_rates > 0,
+                                    instantaneous_rates / (self.avg_throughput + 1e-6),
+                                    0)
+
+                # Select the user(s) with the highest PF metric.
+                max_indices = np.flatnonzero(pf_metrics == np.max(pf_metrics))
+
+                # Randomly select one of the max indices.
+                scheduled_user = int(np.random.choice(max_indices))
+
+                
+                # Record the allocation.
+                grid_alloc[t, rb] = scheduled_user
+                
+                # Add the bits transmitted in this RB for the scheduled user.
+                bits_sent_per_user[scheduled_user] += instantaneous_rates[scheduled_user]
+                
+                # Update the scheduled user's average throughput with an EWMA.
+                self.avg_throughput[scheduled_user] = ((1 - alpha) * self.avg_throughput[scheduled_user] 
+                                                + alpha * instantaneous_rates[scheduled_user])
+
+        
+        # Since the simulation covers 1 second, the total bits sent equals bps.
+        user_rates = bits_sent_per_user  # bits per second
+
+        return grid_alloc, user_rates
     
     def reset(self):
         """ Resetting the simulator."""

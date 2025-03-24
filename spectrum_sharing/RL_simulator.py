@@ -29,10 +29,10 @@ class SionnaEnv(gym.Env):
         self.sharing_bandwidth = self.cfg.primary_fft_size * self.cfg.primary_subcarrier_spacing
         self.primaryBands = {}
         self.initial_states = {}
-        self.norm_ranges= {"throughput": (0, 30), # automate this generation based on theoretical calculations
-                           "se": (0, 6), 
+        self.norm_ranges= {"throughput": (0, 50), # automate this generation based on theoretical calculations
+                           "se": (0, 10), 
                            "pe": (1e-7, 2e-6),
-                           "su": (0, 6),
+                           "su": (0, 10),
                            "sinr": (self.cfg.min_sinr, self.cfg.max_sinr)} 
 
         # Set up gym standard attributes
@@ -218,7 +218,7 @@ class SionnaEnv(gym.Env):
                             se, 
                             pe, 
                             su], axis=0)
-        print(f"Rewards: {updates}")
+
         norm_updates = tf.stack([self._norm(throughput, self.norm_ranges["throughput"][0], self.norm_ranges["throughput"][1]), 
                                  self._norm(se, self.norm_ranges["se"][0], self.norm_ranges["se"][1]), 
                                  self._norm(1/pe, 1/self.norm_ranges["pe"][1], 1/self.norm_ranges["pe"][0]), # being minimised - careful in defining ranges to avoid division by zero

@@ -68,7 +68,7 @@ class ChannelSimulator(tf.keras.Model):
         self.num_rx = num_rx
 
         # Initialising the PUSCH components (there is PUSCH and PDSCH symmetry):
-        self.pusch_config = PUSCHConfig(subcarrier_spacing = subcarrier_spacing / 1000) # Init pusch_transmitter with default settings 
+        self.pusch_config = PUSCHConfig(subcarrier_spacing=subcarrier_spacing / 1000) # Init pusch_transmitter with default settings 
         self.pusch_config.carrier.n_size_grid = int(fft_size / 12) # 12 subcarriers in a RB in 5G NR
         self.channel = ApplyOFDMChannel(add_awgn=True)
         #self.pusch_config.show() 
@@ -93,12 +93,12 @@ class ChannelSimulator(tf.keras.Model):
         M = np.array(self.pusch_config.tb.num_bits_per_symbol)
         R = np.array(self.pusch_config.tb.target_coderate)
         ebno = sinr - (10 * np.log10(R * M)) # SINR to EbNo conversion
-        print(f"EBNO: {ebno}")
         self.sinr = sinr
+        # Noise variance dependent on the SINR, this enables handling interference
         self.sinr_no = tf.clip_by_value(tf.convert_to_tensor([ebnodb2no(item,
             self.pusch_transmitter._num_bits_per_symbol, 
             self.pusch_transmitter._target_coderate, 
-            self.pusch_transmitter.resource_grid) for item in ebno]), 0, 100)
+            self.pusch_transmitter.resource_grid) for item in ebno]), 0, 100) # clipped to arbitarily high value for when there is no signal
 
     @tf.function(jit_compile=True, reduce_retracing=True)
     def iterate(self, ins):
@@ -111,8 +111,6 @@ class ChannelSimulator(tf.keras.Model):
     # Do not use @tf.function as attributes will not update
     def call(self, block_size):
         self.x, self.b = self.pusch_transmitter(block_size)  
-        print(f"SINR NO: {self.sinr_no}")
-        print(self.sinr_no.shape)
         bler_per_link = tf.map_fn(self.iterate, elems=(self.h_freq, self.sinr_no), fn_output_signature=tf.float64)
  
         return tf.reshape(bler_per_link, (self.num_tx, self.num_rx)), tf.reshape(self.sinr, (self.num_tx, self.num_rx))

@@ -109,12 +109,12 @@ def main(cfg):
 
 if __name__ == "__main__":
     gpus = tf.config.list_physical_devices('GPU')
-    logger.info('Number of GPUs available :', len(gpus))
+    logger.info(f'Number of GPUs available : {len(gpus)}')
     if gpus:
         gpu_num = 0 # Index of the GPU to be used
         try:
             tf.config.set_visible_devices(gpus[gpu_num], 'GPU')
-            logger.warning('Only GPU number', gpu_num, 'used.')
+            logger.warning(f'Only GPU number {gpu_num} used.')
             tf.config.experimental.set_memory_growth(gpus[gpu_num], True) # manages memory growth
         except RuntimeError as e:
             logger.critical(e)
