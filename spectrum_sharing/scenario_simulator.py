@@ -145,10 +145,11 @@ class FullSimulator:
 
         # Generating a coverage map for max power to establish valid UE regions
         cm = self.scene.coverage_map(max_depth=self.max_depth,           # Maximum number of ray scene interactions
-                             diffraction=True,
-                             scattering=True, 
-                             cm_cell_size=(self.cell_size, self.cell_size),   # Resolution of the coverage map, smaller is better
-                            )
+                                     diffraction=True,
+                                     scattering=True, 
+                                     cm_cell_size=(self.cell_size, self.cell_size),   # Resolution of the coverage map, smaller is better
+                                     )
+        
         
         return cm, cm.sinr # [num_tx, num_cells_y, num_cells_x], tf.float
     
@@ -247,13 +248,17 @@ class FullSimulator:
             number_rbs = self.simulator.pusch_config.carrier.n_size_grid # number of resource blocks in the carrier resource grid
             max_data_sent_per_rb = max_data_rate / (num_slots * number_rbs) # bits per RB over 14 OFDM symbols
 
+            print(num_slots)
+            print(number_rbs)
+            print(max_data_sent_per_rb)
+
             # Run the PF scheduler
             for tx in range(len(blers)):
                 grid_alloc, rate = self.proportional_fair_scheduler(
                     blers[tx], max_data_sent_per_rb, num_slots, number_rbs, alpha=0.1
                 )
 
-                if timestep is not None:
+                if (timestep is not None) and (self.prefix == "sharing"):
                     prop_fair_plotter(timestep, 
                                       tx,
                                       grid_alloc, 

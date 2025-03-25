@@ -14,14 +14,13 @@ scene_path: "/home/ubuntu/spectrum_sharing/spectrum_sharing/Scene/BRISTOL_3/"
 
 # Scene and Sionna
 num_rx: 20
-max_depth: 5
-sharing_carrier_freq: 7425e6
-primary_subcarrier_spacing: 15e3 # WiFi 6 subcarrier spacing would be 78.125, may need to change resource grid to properly change
-sharing_subcarrier_spacing: 30e3 # Changing this will change the number of slots per frame
-primary_fft_size: 120 # needs to be a power of 12RBs - will be rounded to power of 2 fft internally
-sharing_fft_size: 324 # really this isn't FFT size but number of subcarriers, should be nearest power of 2
+max_depth: 5 # ray tracer depth
+sharing_carrier_freq: 6465e6 # central carrier frequency in upper 6 GHz
+primary_subcarrier_spacing: 15e3 # 5G numerology spacing
+sharing_subcarrier_spacing: 30e3
+primary_fft_size: 660 # approximately 10MHz per primary channel
+sharing_fft_size: 3300 # approximately 100MHz sharing
 batch_size: 1000 # essentially number of Monte Carlo simulations
-# ebno_db: 2.0
 cell_size: 2
 
 # Model and training
@@ -31,7 +30,7 @@ target_network_update_freq: 10 # in episodes
 buffer_max_size: 1000000
 gamma: 0.9 # how is future reward prioritised
 epsilon_start: 1.0
-epsilon_quick_start: 0.1 # for a preloaded model
+epsilon_quick_start: 0.3 # for a preloaded model
 epsilon_min: 0.15
 epsilon_decay: 0.9995
 learning_rate: 0.0001
@@ -57,7 +56,7 @@ transmitters:
         state: 0
         look_at: [10, -50, 10]
         mu_pa: 0.4
-        primary_carrier_freq: 4145e6
+        primary_carrier_freq: 3900e6
 
     tx1:
         name: "tx1"
@@ -72,7 +71,7 @@ transmitters:
         state: 0
         look_at: [-50, 115, 10]
         mu_pa: 0.5
-        primary_carrier_freq: 3425e6
+        primary_carrier_freq: 3700e6
 
     # tx2:
     #     name: "tx2"

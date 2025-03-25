@@ -90,7 +90,7 @@ class SionnaEnv(gym.Env):
                                           scene_name=cfg.scene_path + "simple_OSM_scene.xml",
                                          carrier_frequency=self.cfg.sharing_carrier_freq,
                                          bandwidth=self.sharing_bandwidth,
-                                         pmax=50, # maximum power
+                                         pmax=50, # maximum power for initial mapping of coverage area
                                          transmitters=self.transmitters,
                                          num_rx = self.cfg.num_rx,
                                          max_depth=self.cfg.max_depth,
@@ -226,6 +226,9 @@ class SionnaEnv(gym.Env):
         
         indices = tf.constant([[self.timestep, 0], [self.timestep, 1], [self.timestep, 2], [self.timestep, 3]]) # used for updating preallocated tensor
         self.rewards = tf.tensor_scatter_nd_update(self.rewards, indices, tf.reshape(updates, (4,)))
+
+        print(self.rewards)
+
         self.norm_rewards = tf.tensor_scatter_nd_update(self.norm_rewards, indices, tf.reshape(norm_updates, (4,)))
         reward = tf.reduce_sum(norm_updates)
 
