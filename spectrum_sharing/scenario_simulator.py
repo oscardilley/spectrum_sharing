@@ -16,9 +16,79 @@ from spectrum_sharing.plotting import prop_fair_plotter
 
 class FullSimulator:
     """
-    Full simulator
+    NVIDIA Sionna-based 5G-NR simulator for a single band with multiple 
+    transmitters sharing the same spectrum.
 
-    Docs coming soon ...
+    Using ray-tracing, deterministic 
+
+    Parameters
+    ----------
+    cfg : dict
+        Top level configuration dictionary.
+    
+    prefix : str
+        An arbitrary unique identifier for the instance for plot saving etc.
+
+    scene_name : path to Mitsuba XML scene file or sionna.rt.scene object.
+        Points to the scene to be loaded.
+
+    carrier_frequency : float
+        Centre frequency in Hz.
+
+    bandwidth : int
+        The bandwidth in Hz to consider is derived from the subcarrier_spacing and fft_size.
+
+    pmax : int
+        The maximum power in dBm, used to determine the grid.
+
+    transmitters : dict
+        A dictionary of the transmitters and their parameters, defined in the config yaml.
+
+    num_rx : int
+        How many users are in the scene.
+
+    max_depth : int
+        How many steps of ray interactions are considered.
+
+    cell_size : int
+        Defines the resolution of coverage maps, relative to the scene unit size. Advised to use 1.
+
+    initial_state : tf.Tensor of tf.bool
+        Of [len(transmitters)] with boolean values corresponding to whether each access point is ON/OFF when initialised.
+
+    subcarrier_spacing : int
+        Subcarrier spacing in Hz. Links to 5G numerologies. E.g. if u=0, subcarrier_spacing=15e3.
+
+    fft_size : 
+        Actually the number of subcarriers in the frequency domain. 
+        FFT size would be derived from this, as the power of 2 typically > 2X number of subcarriers.
+
+    batch_size : int
+        How many times to simulate each link.
+
+    num_time_steps : int
+        Number of OFDM symbols per subframe. Defaults to 14.
+
+    Inputs
+    ------
+    receivers : nested dict
+        Dictionary for the users, first level key f"ue{ue_id}", second level
+        provides the position, direction, color, buffer attributes for the users.
+
+    state : tf.Tensor of tf.bool
+        Of [len(transmitters)] with boolean values corresponding to whether each access point is ON/OFF.
+
+    transmitters : dict
+        Updated transmitter dict with modified power levels or position for example.
+
+    timestep :
+        Defaults to None for episode initialisation.
+
+    Outputs
+    -------
+    results: dict 
+        Dictionary containing sinrs, blers and rates as tf.Tensor for the different users to each transmitter in the band.
+    
     """
     def __init__(self,
                  cfg,
@@ -37,6 +107,7 @@ class FullSimulator:
                  batch_size,
                  num_time_steps=14,
                  ):
+        """ Initialisation. """
         
         # Configuration attributes
         self.cfg = cfg
@@ -85,6 +156,7 @@ class FullSimulator:
         self.cm, self.sinr = self._coverage_map(init=False) # correcting power levels
         self.grid = self._validity_matrix(self.cm.num_cells_x, self.cm.num_cells_y, area)
         self.avg_throughput = np.zeros(self.num_rx) # used for scheduling
+
         return
 
     
@@ -165,8 +237,8 @@ class FullSimulator:
         
         return grid
 
-    def __call__(self, receivers, state, transmitters=None, timestep=None, path=None):
-        """ Running an episode. """
+    def __call__(self, receivers, state, transmitters=None, timestep=None):
+        """ Running an episode with proportional fair scheduling. """
         # NB: SINR in dB here, different to coverage maps
         blers = [] # used to estimate throughput
         sinrs = []
@@ -248,10 +320,6 @@ class FullSimulator:
             number_rbs = self.simulator.pusch_config.carrier.n_size_grid # number of resource blocks in the carrier resource grid
             max_data_sent_per_rb = max_data_rate / (num_slots * number_rbs) # bits per RB over 14 OFDM symbols
 
-            print(num_slots)
-            print(number_rbs)
-            print(max_data_sent_per_rb)
-
             # Run the PF scheduler
             for tx in range(len(blers)):
                 grid_alloc, rate = self.proportional_fair_scheduler(
@@ -272,10 +340,8 @@ class FullSimulator:
 
 
     def update_receivers(self, receivers):
-        """ Changing the receivers within the scene. 
-        
-        Note that coordinate handling is delicate between Sionna scenes, coverage maps and utility functions. 
-        
+        """ 
+        Changing the receivers within the scene. Note: coordinate handling is delicate between Sionna scenes, coverage maps and utility functions. 
         """
         per_rx_sinr_db = []
         max_x = float(self.scene.size[0].numpy())
@@ -307,16 +373,20 @@ class FullSimulator:
         Schedule RBs to users using proportional fair scheduling, 
         while excluding users with no connection (BLER>disconnect).
         
-        Parameters:
+        Parameters
+        ----------
         blers: ID tensor of blers for each user.
         max_data_sent_per_rb: maximum bits per RB (given the numerology etc.).
         num_slots: total number of time slots in 1 second.
         number_rbs: number of resource blocks per slot.
         alpha: EWMA weight for throughput update, a smaller alpha remembers the past more
         
-        Returns:
-        grid_alloc: 2D numpy array (time slots x RBs) with allocated user IDs.
-        avg_throughput: final average throughput for each user.
+        Returns
+        -------
+        grid_alloc: np.ndarray
+            [time slots, RBs] with allocated user IDs.
+        avg_throughput: np.ndarray
+            [Users], final average throughput for each user.
         """
         blers = blers.numpy()
         num_users = len(blers)
@@ -368,5 +438,4 @@ class FullSimulator:
     
     def reset(self):
         """ Resetting the simulator."""
-
         return self._scene_init()

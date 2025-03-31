@@ -16,7 +16,21 @@ from spectrum_sharing.scenario_simulator import FullSimulator
 from spectrum_sharing.logger import logger
 
 class SionnaEnv(gym.Env):
-    """ Sionna environment for reinforcement learning. """
+    """ Sionna environment inheriting from OpenAI Gymnasium for training
+    reinforcement learning models in spectrum sharing.
+
+    Parameters
+    ----------
+    cfg : dict
+        Top level configuration dictionary.
+
+    Usage
+    ------
+    Call reset() to initialise episode.
+    Call step() to advance episode.
+    Call render() to visualise.
+
+    """
 
     def __init__(self, cfg):
         """ Initialisation of the environment. """
@@ -87,7 +101,7 @@ class SionnaEnv(gym.Env):
         # Setting up the sharing band
         self.sharingBand = FullSimulator(cfg=self.cfg,
                                          prefix="sharing",
-                                          scene_name=cfg.scene_path + "simple_OSM_scene.xml",
+                                        scene_name=cfg.scene_path + "simple_OSM_scene.xml",
                                          carrier_frequency=self.cfg.sharing_carrier_freq,
                                          bandwidth=self.sharing_bandwidth,
                                          pmax=50, # maximum power for initial mapping of coverage area
@@ -105,8 +119,21 @@ class SionnaEnv(gym.Env):
         self.global_min = (global_centre[0:2] - (self.sharingBand.global_size[0:2]  / 2)).astype(int)
 
         
-    def reset(self, seed=None, options=None):
-        """ Reset the environment to its initial state. """
+    def reset(self, seed=None):
+        """ 
+        Reset the environment to its initial state.
+        
+        Parameters
+        ----------
+        seed : int
+            A random seed for determinism. Defaults to None.
+
+        Returns
+        -------
+        observation : list
+            Environment observation. The list of dict returned by _get_obs() 
+        
+        """
         super().reset(seed=seed)
 
         # Initialising data structures
@@ -139,7 +166,32 @@ class SionnaEnv(gym.Env):
         return self._get_obs()
 
     def step(self, action):
-        """ Step through the environment. """
+        """ 
+        Step through the environment, after applying an action.
+        
+        Parameters
+        ----------
+        action : list
+            The action taken for the next timestep.
+
+        Returns
+        -------
+        observation : list
+            Environment observation. The list of dict returned by _get_obs() 
+
+        reward : float
+            Normalised float representation of the reward the agent receieves
+            from this episode.
+
+        terminated : bool
+            Flag indicating if this is the final timestep of the episode.
+
+        truncated : bool
+            Flag indicated if the episode is being cut short.
+
+        info : dict
+            Key value pairs of additional information.           
+        """
         self.sharing_state = tf.convert_to_tensor([bool(tx_action[0]) for tx_action in action], dtype=tf.bool) # action in (array(tx_0_on/off, tx_0_power_decrease/stay/increase) for tx in transmitters)
 
         # Updating the transmitters
@@ -193,7 +245,7 @@ class SionnaEnv(gym.Env):
                                              sharing_power,
                                              mu_pa)
 
-        se, per_ap_se = get_spectral_efficiency(self.primary_bandwidth, 
+        se, per_band_per_ap_se = get_spectral_efficiency(self.primary_bandwidth, 
                                                 self.sharing_bandwidth,
                                                 per_ap_per_band_throughput)
         
@@ -227,8 +279,6 @@ class SionnaEnv(gym.Env):
         indices = tf.constant([[self.timestep, 0], [self.timestep, 1], [self.timestep, 2], [self.timestep, 3]]) # used for updating preallocated tensor
         self.rewards = tf.tensor_scatter_nd_update(self.rewards, indices, tf.reshape(updates, (4,)))
 
-        print(self.rewards)
-
         self.norm_rewards = tf.tensor_scatter_nd_update(self.norm_rewards, indices, tf.reshape(norm_updates, (4,)))
         reward = tf.reduce_sum(norm_updates)
 
@@ -245,7 +295,15 @@ class SionnaEnv(gym.Env):
         return self._get_obs(), reward, self.terminated, self.truncated, {"rewards": norm_updates}
 
     def _get_obs(self):
-        """ Getting the data for the current state. """
+        """ 
+        Getting the data for the current state. 
+
+        Returns
+        -------
+        observation : list
+            Environment observation. The list of dict returned by _get_obs()          
+        
+        """
         state = [] # Adding normalised values to the state array
 
         # Iterate over each transmitter
@@ -312,18 +370,43 @@ class SionnaEnv(gym.Env):
 
             state.append(tx_obs)
 
-        # Need to fix either the state or the get_obs for how the bler, sinr etc are added
-
         return state
     
     def _norm(self, value, min_val, max_val):
-        """Min Max Normalisation of value to range [0,1] given a range. """
+        """
+        Min Max Normalisation of value to range [0,1] given a range. 
+        
+        Parameters
+        ----------
+        value : float
+            Value for normalisation.
+
+        min_val : float
+            Upper bound for value.
+
+        max_val : float
+            Lower bound for value.
+
+        Returns
+        -------
+        value_norm : float
+            Min-max normalised value between [0,1].      
+        
+        """
         value_clipped = tf.clip_by_value(value, min_val, max_val) # avoiding inf
 
         return (value_clipped - min_val) / (max_val - min_val)
     
     def render(self, episode):
-        """ Visualising the performance. """
+        """ 
+        Visualising the performance. Plots and saves graphs to directory at config save path for images. 
+
+        Parameters
+        ----------
+        episode : int
+            Episode reference number for file naming.
+
+        """
         # Plotting the performance and motion
         if len(self.performance) > self.max_results_length: # managing stored results size
             self.performance = self.performance[-1*self.max_results_length:]
@@ -365,6 +448,6 @@ class SionnaEnv(gym.Env):
                                                                        fig=self.primary_figs[id],
                                                                        ax=self.primary_axes[id], 
                                                                        save_path=self.cfg.images_path)
-        
+
 
         return

@@ -14,7 +14,45 @@ import pickle
 from spectrum_sharing.logger import logger
 
 class Agent:
+    """
+    DQN agent for spectrum sharing. Action masking employed.
+
+    Parameters
+    ----------
+    cfg : dict
+        Top level configuration dictionary.
+    
+    observation_space : gymnasium.spaces
+        Space defining the observation possibilites.
+
+    num_tx : int
+        How many transmitters there are - used in building the Q-network.
+
+    action_space : gymnasium.spaces
+        Space defining the action possibilities.
+
+    possible_actions : list
+        An iterable containing all of the precomputed, possible actions, for indexing.
+
+    num_possible_actions: int
+        Length of possible_actions.
+
+    path : path
+        Path to save the models to.
+
+    test : bool, optional
+        Flag indicating whether in test mode with no exploration. Default to False.
+
+    Usage
+    -----
+    Call `act()` to select an action based on the current observation.
+    Call `train()` to train the Q-network using experience from the replay buffer.
+    Call `save_model()` and `load_model()` to save and load the agent's model.
+    """
     def __init__(self, cfg, observation_space, num_tx, action_space, possible_actions, num_possible_actions, path, test=False):
+        """
+        Initialize the DQN agent.
+        """
         self.cfg = cfg
         self.transmitters = dict(self.cfg.transmitters)
         self.num_tx = num_tx
@@ -61,7 +99,14 @@ class Agent:
         self.update_target_network()
     
     def build_model(self):
-        """Build the Q-network."""
+        """
+        Build the Q-network.
+
+        Returns
+        -------
+        model : tf.keras.Model
+            The Q-network model.
+        """
         transmitter_heads = []
         processed_features = []
 
@@ -87,7 +132,19 @@ class Agent:
         return model
     
     def _preprocess_observation(self, observation):
-        """Convert the nested observation dict into a list of flattened arrays for each transmitter."""
+        """
+        Convert the nested observation dictionary into a list of flattened arrays for each transmitter.
+
+        Parameters
+        ----------
+        observation : dict
+            Nested dictionary of observations for each transmitter.
+
+        Returns
+        -------
+        processed_inputs : list
+            List of flattened arrays for each transmitter.
+        """
         processed_inputs = []
         
         for tx_id in range(self.num_tx):
@@ -97,11 +154,28 @@ class Agent:
         return processed_inputs
 
     def update_target_network(self):
-        """Synchronize target network with main network."""
+        """
+        Synchronize target network with main network.
+        """
         self.target_model.set_weights(self.model.get_weights())
     
     def act(self, observation):
-        """Select an action using epsilon-greedy strategy."""
+        """
+        Select an action using the epsilon-greedy strategy.
+
+        Parameters
+        ----------
+        observation : dict
+            Current observation of the environment.
+
+        Returns
+        -------
+        action : tuple
+            Selected action for the current step.
+
+        idx : int
+            Index of the selected action in the action space.
+        """
         valid_mask = self.get_valid_action_mask(observation)  # producing the action mask
 
         if np.random.rand() <= self.epsilon: # decaying epsilon
@@ -125,7 +199,19 @@ class Agent:
             return self.actions[idx], idx
         
     def get_valid_action_mask(self, observation):
-        """Create a mask for valid actions based on the power constraints."""
+        """
+        Create a mask for valid actions based on power constraints.
+
+        Parameters
+        ----------
+        observation : dict
+            Current observation of the environment.
+
+        Returns
+        -------
+        valid_mask : np.ndarray
+            Boolean array indicating valid actions.
+        """
         valid_mask = np.ones(self.num_actions, dtype=bool)  # Start with all valid
 
         for id, action in enumerate(self.actions):
@@ -145,7 +231,20 @@ class Agent:
         return valid_mask
     
     def train(self, replay_buffer, batch_size, timestep):
-        """Train the Q-network using experience from the replay buffer."""
+        """
+        Train the Q-network using experience from the replay buffer.
+
+        Parameters
+        ----------
+        replay_buffer : ReplayBuffer
+            Replay buffer containing past experiences.
+
+        batch_size : int
+            Number of samples to use for training.
+
+        timestep : int
+            Current timestep in the environment.
+        """
         if len(replay_buffer) < batch_size:
             return
         logger.info("Training.")
@@ -190,20 +289,52 @@ class Agent:
         return
 
     def save_model(self):
-        """ Saving the neural network."""
+        """ 
+        Saving the neural network.
+        """
         self.model.save(self.path)
         self.target_model.save(self.path + "_target")
         pass
 
     def load_model(self):
-        """Check if model already exists and load it."""
+        """
+        Load the Q-network and target network from disk.
+
+        Returns
+        -------
+        model : tf.keras.Model
+            Loaded Q-network model.
+
+        target_model : tf.keras.Model
+            Loaded target network model.
+        """
         model = tf.keras.models.load_model(self.path)
         target_model = tf.keras.models.load_model(self.path + "_target")
         return model, target_model
 
 
 class ReplayBuffer:
+    """
+    Replay buffer for storing and sampling experiences.
+
+    Parameters
+    ----------
+    max_size : int
+        Maximum size of the replay buffer.
+
+    path : str
+        Path to save the replay buffer.
+
+    Usage
+    -----
+    Call `add()` to add an experience to the buffer.
+    Call `sample()` to sample a batch of experiences for training.
+    Call `save_buffer()` to save the buffer to disk.
+    """
     def __init__(self, max_size, path):
+        """
+        Initialize the replay buffer.
+        """
         self.path = path + "buffer.pickle"
 
         try:
@@ -215,6 +346,17 @@ class ReplayBuffer:
             self.buffer = deque(maxlen=max_size)
 
     def add(self, experience, timestep):
+        """
+        Add an experience to the replay buffer.
+
+        Parameters
+        ----------
+        experience : tuple
+            A tuple containing (state, action, reward, next_state, done).
+
+        timestep : int
+            Current timestep in the environment.
+        """
         self.buffer.append(experience) 
 
         if timestep % 33 == 0:
@@ -224,6 +366,31 @@ class ReplayBuffer:
         return
 
     def sample(self, batch_size):
+        """
+        Sample a batch of experiences from the replay buffer.
+
+        Parameters
+        ----------
+        batch_size : int
+            Number of experiences to sample.
+
+        Returns
+        -------
+        states : np.ndarray
+            Array of sampled states.
+
+        actions : np.ndarray
+            Array of sampled actions.
+
+        rewards : np.ndarray
+            Array of sampled rewards.
+
+        next_states : np.ndarray
+            Array of sampled next states.
+
+        dones : np.ndarray
+            Array of sampled terminal flags.
+        """
         indices = np.random.choice(len(self.buffer), batch_size, replace=False) # random to break temporal correlations
         batch = [self.buffer[idx] for idx in indices]
         # Unzip the batch into separate arrays
@@ -232,10 +399,20 @@ class ReplayBuffer:
         return np.array(states), np.array(actions), np.array(rewards), np.array(next_states), np.array(dones)
     
     def __len__(self):
+        """
+        Get the current size of the replay buffer.
+
+        Returns
+        -------
+        length : int
+            Number of experiences in the buffer.
+        """
         return len(self.buffer)
     
     def save_buffer(self):
-        """ Save the buffer object in pickle. """
+        """
+        Save the replay buffer to disk as a pickle file.
+        """
         with open(self.path, "wb") as file:
             pickle.dump(self.buffer, file)
 

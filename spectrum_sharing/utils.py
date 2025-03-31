@@ -8,7 +8,32 @@ import tensorflow as tf
 import numpy as np
 
 def update_users(grid, num_users, users, max_move=2):
-    """ Based on tensorflow validity matrix, either generate random users or update existing"""
+    """
+    Update the positions and directions of users on a grid.
+
+    This function either initializes users with random valid positions on the grid
+    or updates their positions based on their current direction. It also generates
+    new valid movement directions for each user.
+
+    Parameters
+    ----------
+    grid : tf.Tensor
+        A 2D TensorFlow tensor representing the grid where users move.
+
+    num_users : int
+        The number of users to update or initialize.
+
+    users : dict
+        A dictionary containing user attributes. If empty, users are initialized.
+
+    max_move : int, optional
+        The maximum movement distance in any direction. Defaults to 2.
+
+    Returns
+    -------
+    users : dict
+        Updated dictionary of users with new positions and directions.
+    """
     y_max = grid.shape[0]
     x_max = grid.shape[1]
     valid_indices = tf.where(grid)
@@ -50,7 +75,17 @@ def update_users(grid, num_users, users, max_move=2):
 
 
 def levy_step():
-    """Generate a step size following a Levy distribution, scaled for grid movement"""
+    """
+    Generate a step size following a Levy distribution, scaled for grid movement.
+
+    This function generates a random step size based on the Levy distribution,
+    which is then scaled to represent movement on a grid.
+
+    Returns
+    -------
+    step : tf.Tensor
+        A scalar TensorFlow tensor representing the step size, clipped between 1.0 and 7.0.
+    """
     u = tf.random.normal(shape=(), mean=0, stddev=1)
     v = tf.random.normal(shape=(), mean=0, stddev=1)
     step = u / tf.abs(v)**(1/2)
@@ -59,7 +94,29 @@ def levy_step():
     return tf.clip_by_value(step, 1.0, 7.0)
 
 def find_valid_position(grid, base_pos, max_radius=None):
-    """Find the nearest valid position to the given base position"""
+    """
+    Find the nearest valid position to the given base position on the grid.
+
+    This function searches for a valid position on the grid starting from the
+    given base position. If no valid position is found within the specified
+    radius, a random valid position is returned.
+
+    Parameters
+    ----------
+    grid : tf.Tensor
+        A 2D TensorFlow tensor representing the grid where positions are checked.
+
+    base_pos : tf.Tensor
+        A 1D TensorFlow tensor of shape (2,) representing the base position.
+
+    max_radius : int, optional
+        The maximum radius to search for a valid position. Defaults to the entire grid if None.
+
+    Returns
+    -------
+    pos : tf.Tensor
+        A 1D TensorFlow tensor of shape (2,) representing the nearest valid position.
+    """
     y_max, x_max = grid.shape
     radius = 0
     base_pos = tf.cast(base_pos, tf.int64)
@@ -95,13 +152,66 @@ def find_valid_position(grid, base_pos, max_radius=None):
     return tf.gather(valid_indices, random_idx)
 
 def get_throughput(rates):
-    """ Calculate average link level throughput. """
+    """
+    Calculate average link-level throughput.
+
+    This function computes the total, per-band, and per-user throughput
+    from the given data rates.
+
+    Parameters
+    ----------
+    rates : tf.Tensor
+        A 3D TensorFlow tensor representing data rates in bits per second over [Transmitters, Bands, Users]
+
+    Returns
+    -------
+    total_throughput : tf.float32
+        Total aggregated throughput in Mbps.
+
+    per_ue_throughput : tf.Tensor of tf.float32
+        Per-UE throughput in Mbps. 1D of size [Users]
+
+    per_ap_per_band_throughput : tf.Tensor of tf.float32
+        Per-user throughput in Mbps. 2D of [Transmitters, Bands]
+    """
     rates = rates / 1e6 # convert to Mbps
     return tf.cast(tf.reduce_sum(rates), dtype=tf.float32), tf.cast(tf.reduce_sum(rates, axis=[0,1]), dtype=tf.float32), tf.cast(tf.reduce_sum(rates, axis=2), dtype=tf.float32)
 
 def get_power_efficiency(primary_bw, sharing_bw, sharing_state, primary_power, sharing_power, mu_pa):
-    """ Calculate average power efficiency in W/MHz which is later abstracted to energy efficiency. 
-    Bandwidths provided in Hz, powers in W. Aiming to minimise this value."""
+    """
+    Calculate average power efficiency in W/MHz.
+
+    This function computes the power efficiency for both primary and sharing
+    bands, as well as their combined efficiency.
+
+    Parameters
+    ----------
+    primary_bw : float
+        Bandwidth of the primary network in Hz.
+
+    sharing_bw : float
+        Bandwidth of the sharing network in Hz.
+
+    sharing_state : tf.Tensor
+        A tensor indicating the permitted sharing band state (ON/OFF) for 1D of size [Access points].
+
+    primary_power : float
+        Power consumption of the primary network in W.
+
+    sharing_power : float
+        Power consumption of the sharing network in W.
+
+    mu_pa : float
+        Power amplifier efficiency, specific to access point.
+
+    Returns
+    -------
+    total_power_efficiency : tf.float32
+        Total power efficiency in W/MHz.
+
+    per_ap_power_efficiency : tf.Tensor of tf.float32
+        Per-access point power efficiency in W/MHz over sharing and primary bands.
+    """
     primary_pe = (primary_power / mu_pa) / primary_bw
     sharing_pe = (tf.cast(sharing_state, tf.float32) * (sharing_power / mu_pa)) / sharing_bw
     combined_pe = (primary_pe + sharing_pe)
@@ -109,7 +219,31 @@ def get_power_efficiency(primary_bw, sharing_bw, sharing_state, primary_power, s
     return tf.cast(tf.reduce_sum(combined_pe), dtype=tf.float32), tf.cast(combined_pe, dtype=tf.float32)
 
 def get_spectral_efficiency(primary_bw, sharing_bw, per_ap_per_band_throughput):
-    """ Calculate average spectral efficiency. """
+    """
+    Calculate average spectral efficiency.
+
+    This function computes the spectral efficiency for both primary and sharing
+    networks, as well as their combined efficiency.
+
+    Parameters
+    ----------
+    primary_bw : float
+        Bandwidth of the primary network in Hz.
+
+    sharing_bw : float
+        Bandwidth of the sharing network in Hz.
+
+    per_ap_per_band_throughput : tf.Tensor
+        A tensor of throughput values per access point and band.
+
+    Returns
+    -------
+    avg_spectral_efficiency : tf.float32
+        Average spectral efficiency.
+
+    per_band_per_ap_spectral_efficiency : tf.Tensor of tf.float32
+        Per-band, per access point spectral efficiency. 2D of [Bands, Access Points]
+    """
     per_ap_per_band_throughput = per_ap_per_band_throughput * 1e6 # convert back to bps from Mbps
     primary_se = tf.reduce_sum(tf.stack([per_ap_per_band_throughput[bs,:] / primary_bw for bs in range(int(per_ap_per_band_throughput.shape[1]))]), axis=0) # for separated primary bands
     sharing_se = per_ap_per_band_throughput[-1,:] / sharing_bw # single sharing band - easier calculation
@@ -118,7 +252,32 @@ def get_spectral_efficiency(primary_bw, sharing_bw, per_ap_per_band_throughput):
     return tf.cast(tf.reduce_mean(combined), dtype=tf.float32), tf.cast(combined, dtype=tf.float32)
 
 def get_spectrum_utility(primary_bw, sharing_bw, sharing_state, total_throughput):
-    """ Calculate how much of the spectrum is used. """
+    """
+    Calculate how sensibly the spectrum is used.
+
+    This function computes the spectrum utility, which represents the
+    efficiency of spectrum usage by combining primary and sharing networks. It encourages opening 
+    spectrum for sharing when it is not needed.
+
+    Parameters
+    ----------
+    primary_bw : float
+        Bandwidth of the primary network in Hz.
+
+    sharing_bw : float
+        Bandwidth of the sharing network in Hz.
+
+    sharing_state : tf.Tensor
+        A tensor indicating the permitted sharing band state (ON/OFF) for 1D of size [Access points].
+
+    total_throughput : float
+        Total throughput in bits per second.
+
+    Returns
+    -------
+    spectrum_utility : tf.float32
+        Spectrum utility as a float.
+    """
     num_bs = tf.cast(sharing_state.shape[0], dtype=tf.float32)
     total_primary_spectrum = tf.reduce_sum(num_bs * primary_bw)
     total_sharing_spectrum = tf.reduce_sum(tf.cast(sharing_state, tf.float32) * sharing_bw)
