@@ -112,6 +112,6 @@ If you use this code in your research, please cite:
   author = {Oscar Dilley},
   title = {Spectrum Sharing: A Dynamic Spectrum Access Research Framework},
   year = {2025},
-  url = {https://github.com/yourusername/spectrum_sharing}
+  url = {https://github.com/oscardilley/spectrum_sharing}
 }
 ```
