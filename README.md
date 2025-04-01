@@ -11,6 +11,7 @@
 - [System and Dependencies](#system-and-dependencies)
 - [Installation and Example Run](#installation-and-example-run)
 - [Outputs](#outputs)
+- [Known Limitations](#known-limitations)
 - [Repo Structure](#repo-structure)
 - [Documentation](#documentation)
 - [License](#license)
@@ -51,6 +52,8 @@ pip install -r requirements.txt
 python3 -m spectrum_sharing.main 
 ```
 
+**Note:** modify configuration through conf/simulation.yaml.
+
 The above block runs _main.py_ which triggers the training routine that takes the following steps:
 1. Load the configuration and initialise the environment and agent.
 2. Load existing or create new model and replay buffer.
@@ -70,8 +73,7 @@ The above block runs _main.py_ which triggers the training routine that takes th
 
 ## Outputs
 
-
-
+## Known Limitations
 
 ## Repo Structure
 
