@@ -10,6 +10,7 @@
 - [Features](#features)
 - [System and Dependencies](#system-and-dependencies)
 - [Installation and Example Run](#installation-and-example-run)
+- [Outputs](#outputs)
 - [Repo Structure](#repo-structure)
 - [Documentation](#documentation)
 - [License](#license)
@@ -50,7 +51,27 @@ pip install -r requirements.txt
 python3 -m spectrum_sharing.main 
 ```
 
-The above block runs _main.py_ which 
+The above block runs _main.py_ which triggers the training routine that takes the following steps:
+1. Load the configuration and initialise the environment and agent.
+2. Load existing or create new model and replay buffer.
+3. Start a loop for the specified number of episodes to run.
+4. Take the initial observation from the environment and let the agent determine its action.
+5. Observe the 5 tuple of (observation, reward, terminated, truncated, info) from the latest action.
+6. Store the experience in the replay buffer.
+7. Trigger agent training if the replay buffer is sufficiently large.
+8. Render the visualisations.
+9. Store rewards.
+10. Regularly store model and buffer on disc.
+11. Monitor terminated and truncated for exit command.
+12. Loop until episode is complete.
+13. Loop until all episodes have completed.
+
+**Note:** in this implementation, each timestep of each episode is assumed to be 1s long to simplify calculations for velocity, rates, etc. 
+
+## Outputs
+
+
+
 
 ## Repo Structure
 
@@ -97,7 +118,7 @@ You could benefit from this repo as follows:
 
 ## Documentation
 
-Comprehensive documentation coming soon...
+Comprehensive documentation coming sometime soon...
 
 ## License
 
