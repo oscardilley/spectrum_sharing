@@ -73,6 +73,24 @@ The above block runs _main.py_ which triggers the training routine that takes th
 
 ## Outputs
 
+### User Tracking on Coverage Maps
+Primary maps:
+![Scene Primary Band 0, SINR](https://github.com/user-attachments/assets/16f78537-65d9-4997-a487-6979b00e22a1)
+![Scene Primary Band 1, SINR](https://github.com/user-attachments/assets/fd28e97d-68f9-4bf2-ac6b-6bab3465ce31)
+
+Sharing maps:
+![Scene Sharing Band, Max SINR Step 4](https://github.com/user-attachments/assets/40cc38df-09ca-432c-95fa-22f35f6b951a)
+![Scene Sharing Band, Max SINR Step 8](https://github.com/user-attachments/assets/88a8f14b-431d-4aa1-927f-39fd2d7cbfe3)
+
+### User Performance 
+![UE_performance](https://github.com/user-attachments/assets/695db8f2-2bf5-4ed7-ad30-9df79b0887bd)
+
+### Reward Tracking Across Episodes
+![Rewards Ep0](https://github.com/user-attachments/assets/df47ee99-92be-4dc4-925c-8709359387eb)
+
+### Scheduling Insights
+![Scheduler_TX_1_Time_6](https://github.com/user-attachments/assets/33b3042e-1bfc-47cb-8350-6c3b36d2fcd1)
+
 ## Known Limitations
 
 ## Repo Structure
