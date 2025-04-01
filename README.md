@@ -66,7 +66,7 @@ The above block runs _main.py_ which triggers the training routine that takes th
 12. Loop until episode is complete.
 13. Loop until all episodes have completed.
 
-**Note:** in this implementatio, each timestep of each episode is assumed to be 1s long to simplify calculations for velocity, rates, etc. 
+**Note:** in this implementation, each timestep of each episode is assumed to be 1s long to simplify calculations for velocity, rates, etc. 
 
 ## Outputs
 
