@@ -30,7 +30,7 @@ target_network_update_freq: 10 # in episodes
 buffer_max_size: 1000000
 gamma: 0.9 # how is future reward prioritised
 epsilon_start: 1.0
-epsilon_quick_start: 0.3 # for a preloaded model
+epsilon_quick_start: 0.5 # for a preloaded model
 epsilon_min: 0.15
 epsilon_decay: 0.9995
 learning_rate: 0.0001
@@ -49,10 +49,10 @@ transmitters:
         direction: [0, 0, 0]
         orientation: [0, 0, 0]
         color: [1, 0, 0]
-        primary_power: 17.0
-        sharing_power: 19.0
+        primary_power: 20.0
+        sharing_power: 30.0
         min_power: 15.0
-        max_power: 23.0
+        max_power: 45.0
         state: 0
         look_at: [10, -50, 10]
         mu_pa: 0.4
@@ -64,10 +64,10 @@ transmitters:
         direction: [0, 0, 0]
         orientation: [0, 0, 0]
         color: [1, 0, 0]
-        primary_power: 25.0
-        sharing_power: 25.0
-        min_power: 20.0
-        max_power: 30.0
+        primary_power: 20.0
+        sharing_power: 30.0
+        min_power: 15.0
+        max_power: 45.0
         state: 0
         look_at: [-50, 115, 10]
         mu_pa: 0.5

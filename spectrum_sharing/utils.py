@@ -172,7 +172,7 @@ def get_throughput(rates):
         Per-UE throughput in Mbps. 1D of size [Users]
 
     per_ap_per_band_throughput : tf.Tensor of tf.float32
-        Per-user throughput in Mbps. 2D of [Transmitters, Bands]
+        Per-ap per-band throughput in Mbps. 2D of [Transmitters, Bands]
     """
     rates = rates / 1e6 # convert to Mbps
     return tf.cast(tf.reduce_sum(rates), dtype=tf.float32), tf.cast(tf.reduce_sum(rates, axis=[0,1]), dtype=tf.float32), tf.cast(tf.reduce_sum(rates, axis=2), dtype=tf.float32)
@@ -218,6 +218,8 @@ def get_power_efficiency(primary_bw, sharing_bw, sharing_state, primary_power, s
 
     return tf.cast(tf.reduce_sum(combined_pe), dtype=tf.float32), tf.cast(combined_pe, dtype=tf.float32)
 
+import tensorflow as tf
+
 def get_spectral_efficiency(primary_bw, sharing_bw, per_ap_per_band_throughput):
     """
     Calculate average spectral efficiency.
@@ -234,22 +236,36 @@ def get_spectral_efficiency(primary_bw, sharing_bw, per_ap_per_band_throughput):
         Bandwidth of the sharing network in Hz.
 
     per_ap_per_band_throughput : tf.Tensor
-        A tensor of throughput values per access point and band.
+        A tensor of throughput values per access point and band. 2D of [Transmitters, Bands]
 
     Returns
     -------
     avg_spectral_efficiency : tf.float32
         Average spectral efficiency.
 
-    per_band_per_ap_spectral_efficiency : tf.Tensor of tf.float32
-        Per-band, per access point spectral efficiency. 2D of [Bands, Access Points]
+    per_ap_spectral_efficiency : tf.Tensor of tf.float32
+        Per access point spectral efficiency. 1D of [Transmitters]
     """
-    per_ap_per_band_throughput = per_ap_per_band_throughput * 1e6 # convert back to bps from Mbps
-    primary_se = tf.reduce_sum(tf.stack([per_ap_per_band_throughput[bs,:] / primary_bw for bs in range(int(per_ap_per_band_throughput.shape[1]))]), axis=0) # for separated primary bands
-    sharing_se = per_ap_per_band_throughput[-1,:] / sharing_bw # single sharing band - easier calculation
-    combined = tf.stack([primary_se, sharing_se])
+    # Convert throughput from Mbps to bps
+    per_ap_per_band_se = per_ap_per_band_throughput * 1e6  
 
-    return tf.cast(tf.reduce_mean(combined), dtype=tf.float32), tf.cast(combined, dtype=tf.float32)
+    # Get number of bands dynamically
+    num_bands = tf.shape(per_ap_per_band_se)[1]
+
+    # Compute spectral efficiency using proper tensor operations
+    if num_bands > 1:
+        primary_se = per_ap_per_band_se[:, :-1] / primary_bw  # Primary bands
+        sharing_se = per_ap_per_band_se[:, -1:] / sharing_bw   # Sharing band (keep it 2D)
+        per_ap_per_band_se = tf.concat([primary_se, sharing_se], axis=1)
+    else:
+        per_ap_per_band_se = per_ap_per_band_se / sharing_bw  # If there's only one band, it's a sharing band
+
+    # Sum spectral efficiency over bands
+    per_ap_se = tf.reduce_sum(per_ap_per_band_se, axis=1)
+
+    # Return average and per AP spectral efficiency
+    return tf.cast(tf.reduce_mean(per_ap_se), dtype=tf.float32), tf.cast(per_ap_se, dtype=tf.float32)
+
 
 def get_spectrum_utility(primary_bw, sharing_bw, sharing_state, total_throughput):
     """

@@ -40,14 +40,9 @@ class SionnaEnv(gym.Env):
         self.num_tx = len(self.transmitters)
         self.max_results_length = self.cfg.max_results_length
         self.primary_bandwidth = self.cfg.primary_fft_size * self.cfg.primary_subcarrier_spacing
-        self.sharing_bandwidth = self.cfg.primary_fft_size * self.cfg.primary_subcarrier_spacing
+        self.sharing_bandwidth = self.cfg.sharing_fft_size * self.cfg.primary_subcarrier_spacing
         self.primaryBands = {}
         self.initial_states = {}
-        self.norm_ranges= {"throughput": (0, 50), # automate this generation based on theoretical calculations
-                           "se": (0, 10), 
-                           "pe": (1e-7, 2e-6),
-                           "su": (0, 10),
-                           "sinr": (self.cfg.min_sinr, self.cfg.max_sinr)} 
 
         # Set up gym standard attributes
         self.truncated = False
@@ -86,7 +81,7 @@ class SionnaEnv(gym.Env):
                                                                      prefix="primary",
                                                                      scene_name= cfg.scene_path + "simple_OSM_scene.xml", #sionna.rt.scene.simple_street_canyon,
                                                                      carrier_frequency=tx["primary_carrier_freq"],
-                                                                     bandwidth=self.primary_bandwidth,
+                                                                     # bandwidth=self.primary_bandwidth,
                                                                      pmax=50, # maximum power
                                                                      transmitters=self.transmitters,
                                                                      num_rx = self.cfg.num_rx,
@@ -101,9 +96,9 @@ class SionnaEnv(gym.Env):
         # Setting up the sharing band
         self.sharingBand = FullSimulator(cfg=self.cfg,
                                          prefix="sharing",
-                                        scene_name=cfg.scene_path + "simple_OSM_scene.xml",
+                                         scene_name=cfg.scene_path + "simple_OSM_scene.xml",
                                          carrier_frequency=self.cfg.sharing_carrier_freq,
-                                         bandwidth=self.sharing_bandwidth,
+                                         # bandwidth=self.sharing_bandwidth,
                                          pmax=50, # maximum power for initial mapping of coverage area
                                          transmitters=self.transmitters,
                                          num_rx = self.cfg.num_rx,
@@ -114,9 +109,22 @@ class SionnaEnv(gym.Env):
                                          fft_size = self.cfg.sharing_fft_size,
                                          batch_size=self.cfg.batch_size,
                                          )
+        
+        # Getting min and max and key attribute from theoretical calculations
         global_centre = self.sharingBand.center_transform
         self.global_max = (global_centre[0:2] + (self.sharingBand.global_size[0:2]  / 2)).astype(int)
         self.global_min = (global_centre[0:2] - (self.sharingBand.global_size[0:2]  / 2)).astype(int)
+        primary_max_rates = sum([band.max_data_rate for band in self.primaryBands.values()])
+        max_throughput = ((self.num_tx * self.sharingBand.max_data_rate) + primary_max_rates)
+        max_se = max(max_throughput / (self.primary_bandwidth + self.sharing_bandwidth), primary_max_rates / self.primary_bandwidth)
+        max_su = max_se # max_su will be < max_se by definition
+        # min_pe =  # W/Hz, max power / min bandwidth
+        # max_pe =  # min power / max bandwidth - unsure if these occur when in what state - could use itertools to generate options
+        self.norm_ranges= {"throughput": (0, max_throughput / 1e6), # automate this generation based on theoretical calculations
+                           "se": (0, max_se), 
+                           "pe": (1e-8, 2e-6),
+                           "su": (0, max_su),
+                           "sinr": (self.cfg.min_sinr, self.cfg.max_sinr)} 
 
         
     def reset(self, seed=None):
@@ -219,7 +227,7 @@ class SionnaEnv(gym.Env):
 
         # Running the simulation - with separated primary bands
         primaryOutputs = [primaryBand(self.users, state, self.transmitters) for primaryBand, state in zip(self.primaryBands.values(), self.initial_states.values())]
-        sharingOutput = self.sharingBand(self.users, self.sharing_state, self.transmitters, self.timestep, self.cfg.images_path)
+        sharingOutput = self.sharingBand(self.users, self.sharing_state, self.transmitters, self.timestep)
 
         # Updating SINR maps
         self.primary_sinr_maps = [primaryBand.sinr for primaryBand in self.primaryBands.values()]    
@@ -231,7 +239,10 @@ class SionnaEnv(gym.Env):
         self.performance.append({"Primary": primaryOutput, "Sharing": sharingOutput})
 
         # Calculating rewards
-        self.rates = tf.stack([primaryOutput["rate"] for primaryOutput in primaryOutputs] + sharingOutput["rate"])
+        self.rates = tf.concat([
+            tf.cast(tf.stack([primaryOutput["rate"] for primaryOutput in primaryOutputs], axis=1), dtype=tf.float32),  
+            tf.cast(tf.expand_dims(sharingOutput["rate"], axis=1), dtype=tf.float32)  # Expanding to [2,1,20]
+        ], axis=1)  # Concatenating along axis 1 to make it [Transmitters, Bands, UEs]
         throughput, per_ue_throughput, per_ap_per_band_throughput = get_throughput(self.rates)
 
         primary_power = tf.convert_to_tensor(np.power(10, (np.array([tx["primary_power"] for tx in self.transmitters.values()]) - 30) / 10), dtype=tf.float32) # in W
@@ -245,7 +256,7 @@ class SionnaEnv(gym.Env):
                                              sharing_power,
                                              mu_pa)
 
-        se, per_band_per_ap_se = get_spectral_efficiency(self.primary_bandwidth, 
+        se, per_ap_se = get_spectral_efficiency(self.primary_bandwidth, 
                                                 self.sharing_bandwidth,
                                                 per_ap_per_band_throughput)
         
@@ -270,6 +281,7 @@ class SionnaEnv(gym.Env):
                             se, 
                             pe, 
                             su], axis=0)
+        logger.info(f"Updates [throughput, se, pe, su]: {updates.numpy()}")
 
         norm_updates = tf.stack([self._norm(throughput, self.norm_ranges["throughput"][0], self.norm_ranges["throughput"][1]), 
                                  self._norm(se, self.norm_ranges["se"][0], self.norm_ranges["se"][1]), 

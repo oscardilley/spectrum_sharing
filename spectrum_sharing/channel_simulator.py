@@ -68,10 +68,10 @@ class ChannelSimulator(tf.keras.Model):
         self.num_rx = num_rx
 
         # Initialising the PUSCH components (there is PUSCH and PDSCH symmetry):
-        self.pusch_config = PUSCHConfig(subcarrier_spacing=subcarrier_spacing / 1000) # Init pusch_transmitter with default settings 
+        self.pusch_config = PUSCHConfig() # Init pusch_transmitter with default settings 
         self.pusch_config.carrier.n_size_grid = int(fft_size / 12) # 12 subcarriers in a RB in 5G NR
+        self.pusch_config.carrier.subcarrier_spacing = int(subcarrier_spacing / 1000)
         self.channel = ApplyOFDMChannel(add_awgn=True)
-        #self.pusch_config.show() 
         self.pusch_transmitter = PUSCHTransmitter(self.pusch_config) 
         self.pusch_receiver = PUSCHReceiver(self.pusch_transmitter) 
 

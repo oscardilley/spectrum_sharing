@@ -35,9 +35,6 @@ class FullSimulator:
     carrier_frequency : float
         Centre frequency in Hz.
 
-    bandwidth : int
-        The bandwidth in Hz to consider is derived from the subcarrier_spacing and fft_size.
-
     pmax : int
         The maximum power in dBm, used to determine the grid.
 
@@ -95,7 +92,6 @@ class FullSimulator:
                  prefix,
                  scene_name,
                  carrier_frequency,
-                 bandwidth,
                  pmax,
                  transmitters,
                  num_rx,
@@ -107,14 +103,15 @@ class FullSimulator:
                  batch_size,
                  num_time_steps=14,
                  ):
-        """ Initialisation. """
+        """ 
+        Initialisation. 
+        """
         
         # Configuration attributes
         self.cfg = cfg
         self.prefix = prefix
         self.scene_name = scene_name
         self.carrier_frequency = carrier_frequency
-        self.bandwidth = bandwidth
         self.pmax = pmax
         self.transmitters = transmitters
         self.receivers = None # updated later
@@ -125,6 +122,7 @@ class FullSimulator:
         self.state = initial_state
 
         # OFDM/ 5G NR Specific Attributes
+        self.bandwidth = subcarrier_spacing * fft_size
         self.subcarrier_spacing = subcarrier_spacing
         self.fft_size = fft_size
         self.num_time_steps = num_time_steps
@@ -135,6 +133,9 @@ class FullSimulator:
                                           self.num_rx, 
                                           self.subcarrier_spacing,
                                           self.fft_size)
+        
+        # Calculates instantaneous max data rate, accounting for the numerology - same for all users as not changing MCS and therefore not changing TB size
+        self.max_data_rate = (self.simulator.pusch_config.tb_size * self.simulator.pusch_config.carrier.num_slots_per_frame) / self.simulator.pusch_config.carrier.frame_duration
         logger.info("Displaying the PUSCH configuration in the terminal.")
         self.simulator.pusch_config.show()
 
@@ -144,8 +145,6 @@ class FullSimulator:
         self.sinr = None
         self.grid = None
         self._scene_init()
-
-
 
     def _scene_init(self):
         """ Initialising the scene. """
@@ -281,7 +280,7 @@ class FullSimulator:
         start = perf_counter()
         bler, sinr = self.simulator(block_size=self.batch_size)
         end = perf_counter()
-        total = end - start
+        total = round(end - start, 3)
         logger.info(f"Time taken for bit level simulation: {total}")
 
         # Handling dynamic size of state:
@@ -312,27 +311,32 @@ class FullSimulator:
             # num_resource_blocks is the number of blocks allocated for the PUSCH transmissions, we can only schedule 
             # num_res_per_prb gives the number of resource elements per PRB available for data.
 
-            # Calculates instantaneous max data rate, accounting for the numerology - same for all users as not changing MCS and therefore not changing TB size
-            max_data_rate = (self.simulator.pusch_config.tb_size * self.simulator.pusch_config.carrier.num_slots_per_frame) / self.simulator.pusch_config.carrier.frame_duration
-
             # Proportional fair scheduler approximation, assuming single user MIMO and 1000 slots as we are stepping in 1s increments of 1s
-            num_slots = (self.simulator.pusch_config.carrier.num_slots_per_frame * 1000) / 10 # 1000 for u=0, 2000 for u=1, etc. 
-            number_rbs = self.simulator.pusch_config.carrier.n_size_grid # number of resource blocks in the carrier resource grid
-            max_data_sent_per_rb = max_data_rate / (num_slots * number_rbs) # bits per RB over 14 OFDM symbols
+            num_slots = self.simulator.pusch_config.carrier.num_slots_per_frame / self.simulator.pusch_config.carrier.frame_duration # 1000 for u=0, 2000 for u=1, etc. 
+            number_rbs = self.simulator.pusch_config.num_resource_blocks # number of resource blocks in the carrier resource grid
+            max_data_sent_per_rb = self.max_data_rate / (num_slots * number_rbs) # bits per RB over 14 OFDM symbols
 
             # Run the PF scheduler
+            start = perf_counter()
             for tx in range(len(blers)):
                 grid_alloc, rate = self.proportional_fair_scheduler(
                     blers[tx], max_data_sent_per_rb, num_slots, number_rbs, alpha=0.1
                 )
 
-                if (timestep is not None) and (self.prefix == "sharing"):
-                    prop_fair_plotter(timestep, 
-                                      tx,
-                                      grid_alloc, 
-                                      self.num_rx, 
-                                      save_path=self.cfg.images_path)
+                if (timestep is not None) and (self.prefix == "sharing") and self.state[tx]:
+                    if timestep < 10:
+                        # don't plot if not active and only plot for first timesteps
+                        prop_fair_plotter(timestep, 
+                                        tx,
+                                        grid_alloc, 
+                                        self.num_rx,
+                                        rate, 
+                                        max_data_sent_per_rb,
+                                        save_path=self.cfg.images_path)
                 rates.append(tf.convert_to_tensor(rate))
+            end = perf_counter()
+            total = round(end-start, 3)
+            logger.info(f"Scheduling took {total}s")
 
         results = {"bler": tf.stack(blers), "sinr": tf.stack(sinrs), "rate": tf.stack(rates)}                               
 
@@ -419,7 +423,6 @@ class FullSimulator:
                 # Randomly select one of the max indices.
                 scheduled_user = int(np.random.choice(max_indices))
 
-                
                 # Record the allocation.
                 grid_alloc[t, rb] = scheduled_user
                 

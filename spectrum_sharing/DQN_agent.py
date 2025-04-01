@@ -79,7 +79,7 @@ class Agent:
                 logger.warning("Loading existing model.")
             self.model, self.target_model = self.load_model()
             self.epsilon = 0.0 # zero exploration in test mode
-            logger.warning(f"Epsilon initialised at {self.epsilon}")
+            logger.warning(f"Test mode. Epsilon initialised at {self.epsilon}")
         else:
             try:
                 with open(self.path + "/saved_model.pb", "r"):
