@@ -20,7 +20,11 @@
 ## Overview
 
 This repo offers a simulator for research into dynamic spectrum access (DSA) and spectrum sharing. Using Sionna for ray-tracing, deterministic wireless conditions are generated. The configurable Sionna simualation is encapsulated as an OpenAI gym environment, enabling a consistent interface for developing and training machine learning models for power control and dynamic spectrum access.
+
 ![Repo concept](https://github.com/user-attachments/assets/d2310f48-8223-4735-8128-dc898fb5dce7)
+
+![Picture1](https://github.com/user-attachments/assets/eac124e9-0396-4d58-8113-1d31c16b543e)
+
 
 ## Features
 
