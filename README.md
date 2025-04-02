@@ -75,18 +75,18 @@ The above block runs _main.py_ which triggers the training routine that takes th
 
 ### User Tracking on Coverage Maps
 Primary maps:
-<img src="https://github.com/user-attachments/assets/16f78537-65d9-4997-a487-6979b00e22a1" width="500">
-<img src="https://github.com/user-attachments/assets/fd28e97d-68f9-4bf2-ac6b-6bab3465ce31" width="500">
+<img src="https://github.com/user-attachments/assets/16f78537-65d9-4997-a487-6979b00e22a1" width="400">
+<img src="https://github.com/user-attachments/assets/fd28e97d-68f9-4bf2-ac6b-6bab3465ce31" width="400">
 
 Sharing maps:
-<img src="https://github.com/user-attachments/assets/40cc38df-09ca-432c-95fa-22f35f6b951a" width="500">
-<img src="https://github.com/user-attachments/assets/88a8f14b-431d-4aa1-927f-39fd2d7cbfe3" width="500">
+<img src="https://github.com/user-attachments/assets/40cc38df-09ca-432c-95fa-22f35f6b951a" width="400">
+<img src="https://github.com/user-attachments/assets/88a8f14b-431d-4aa1-927f-39fd2d7cbfe3" width="400">
 
 ### User Performance 
-<img src="https://github.com/user-attachments/assets/695db8f2-2bf5-4ed7-ad30-9df79b0887bd" width="500">
+<img src="https://github.com/user-attachments/assets/695db8f2-2bf5-4ed7-ad30-9df79b0887bd" width="800">
 
 ### Reward Tracking Across Episodes
-![Rewards Ep1](https://github.com/user-attachments/assets/de6f7892-382f-492e-8065-de99da1c3949)
+<img src="https://github.com/user-attachments/assets/de6f7892-382f-492e-8065-de99da1c3949" width="800">
 
 ### Scheduling Insights
 ![Scheduler_TX_1_Time_6](https://github.com/user-attachments/assets/33b3042e-1bfc-47cb-8350-6c3b36d2fcd1)
