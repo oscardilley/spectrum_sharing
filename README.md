@@ -75,6 +75,9 @@ The above block runs _main.py_ which triggers the training routine that takes th
 
 ### User Tracking on Coverage Maps
 Primary maps:
+<img src="https://github.com/user-attachments/assets/16f78537-65d9-4997-a487-6979b00e22a1" width="400">
+<img src="https://github.com/user-attachments/assets/fd28e97d-68f9-4bf2-ac6b-6bab3465ce31" width="400">
+Primary maps:
 ![Scene Primary Band 0, SINR](https://github.com/user-attachments/assets/16f78537-65d9-4997-a487-6979b00e22a1)
 ![Scene Primary Band 1, SINR](https://github.com/user-attachments/assets/fd28e97d-68f9-4bf2-ac6b-6bab3465ce31)
 
