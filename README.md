@@ -36,7 +36,7 @@ This repo offers a simulator for research into dynamic spectrum access (DSA) and
 - Extensible for custom scenarios and algorithms
 
 ## System and Dependencies
-- Versions using Sionna v0.19.0 have sensitive pip dependencies, found in requirements.txt
+- Versions using Sionna v0.19.0 have sensitive pip dependencies, found in requirements.txt. Upgrade to Sionna v1.X.X coming soon.
 - Python 3.10 is advised.
 - Ubuntu 22.04 is advised.
 - Tested on NVIDIA A100, L40 and A40 with CUDA 12.4 and Driver Version: 550.XXX.XX. Known issues with later and earlier drivers due to OptiX clashing with required versions of Mitsuba and DrJit.
