@@ -33,10 +33,9 @@ def main(cfg):
                   possible_actions=env.possible_actions,
                   num_possible_actions=env.num_actions,
                   path=cfg.models_path)
-    avg_reward_per_episode = [0.0 for e in range(int(cfg.episodes))]
-    min_reward_per_episode = [10000 for e in range(int(cfg.episodes))]
-    max_reward_per_episode = [0.0 for e in range(int(cfg.episodes))]
+    reward_per_episode = [[None for _ in range(cfg.step_limit + 1)] for e in range(int(cfg.episodes))]
     avg_throughput_per_episode = [0.0 for e in range(int(cfg.episodes))]
+    avg_fairness_per_episode = [0.0 for e in range(int(cfg.episodes))]
     avg_pe_per_episode = [0.0 for e in range(int(cfg.episodes))]
     avg_se_per_episode = [0.0 for e in range(int(cfg.episodes))]
     avg_su_per_episode = [0.0 for e in range(int(cfg.episodes))]
@@ -65,13 +64,12 @@ def main(cfg):
             agent.train(buffer, cfg.training_batch_size, env.timestep)
 
             # Storing and plotting reward information
-            avg_reward_per_episode[e] += reward / float(cfg.step_limit)
-            min_reward_per_episode[e] = min(reward, min_reward_per_episode[e])
-            max_reward_per_episode[e] = max(reward, max_reward_per_episode[e])
+            reward_per_episode[e][env.timestep] = reward 
             avg_throughput_per_episode[e] += info["rewards"][0].numpy() / float(cfg.step_limit)
-            avg_se_per_episode[e] += info["rewards"][1].numpy() / float(cfg.step_limit)
-            avg_pe_per_episode[e] += info["rewards"][2].numpy() / float(cfg.step_limit)
-            avg_su_per_episode[e] += info["rewards"][3].numpy() / float(cfg.step_limit)
+            avg_fairness_per_episode += info["rewards"][1].numpy() / float(cfg.step_limit)
+            avg_se_per_episode[e] += info["rewards"][2].numpy() / float(cfg.step_limit)
+            avg_pe_per_episode[e] += info["rewards"][3].numpy() / float(cfg.step_limit)
+            avg_su_per_episode[e] += info["rewards"][4].numpy() / float(cfg.step_limit)
 
             # Clearing up
             if terminated or truncated:
@@ -94,10 +92,9 @@ def main(cfg):
 
         # Visualisation to track training performance
         plot_total_rewards(episode=e,
-                           reward=avg_reward_per_episode,
-                           reward_min=min_reward_per_episode,
-                           reward_max=max_reward_per_episode,
+                           reward=np.array(reward_per_episode),
                            throughput=avg_throughput_per_episode,
+                           fairness=avg_fairness_per_episode,
                            se=avg_se_per_episode,
                            pe=avg_pe_per_episode,
                            su=avg_su_per_episode,

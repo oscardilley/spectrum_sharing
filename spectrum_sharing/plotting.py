@@ -99,82 +99,119 @@ def prop_fair_plotter(timestep, tx, grid_alloc, num_users, user_rates, max_data_
     plt.close()
 
 
-def plot_total_rewards(episode,
-                       reward,
-                       reward_min,
-                       reward_max,
-                       throughput,
-                       se,
-                       pe,
-                       su,
+def plot_total_rewards(episode, 
+                       reward, 
+                       throughput, 
+                       fairness, 
+                       se, 
+                       pe, 
                        save_path="/home/ubuntu/spectrum_sharing/Simulations/"):
     """
-    Plot performance metrics on a grid of four subplots:
-      - Top left: Total Throughput.
-      - Top right: Average Reward with min/max lines and IQR fill.
-      - Bottom left: Spectral Efficiency (se) and Spectrum Utility (su) together.
-      - Bottom right: Power Efficiency (pe).
-    """
-    import matplotlib.pyplot as plt
-    import numpy as np
+    Plot performance metrics on a grid of four subplots.
 
+    The subplots are organized as follows:
+        - Top Left: Total Throughput with Fairness (secondary y-axis).
+        - Top Right: Spectral Efficiency.
+        - Bottom Left: Power Efficiency.
+        - Bottom Right: Average Reward with its IQR (25th-75th percentiles).
+
+    Parameters
+    ----------
+    episode : int
+        The last episode index.
+
+    reward : numpy.ndarray
+        2D array of rewards with shape (episode+1, num_runs) where each row 
+        corresponds to an episode and each column to an independent run.
+
+    throughput : numpy.ndarray
+        Array of throughput values per episode.
+
+    fairness : numpy.ndarray
+        Array of fairness values per episode.
+
+    se : numpy.ndarray
+        Array of spectral efficiency values per episode.
+
+    pe : numpy.ndarray
+        Array of power efficiency values per episode.
+
+    save_path : str, optional
+        The directory path to save the resulting figure, by default
+        "/home/ubuntu/spectrum_sharing/Simulations/".
+
+    Returns
+    -------
+    None
+        The function saves the plotted figure to the specified path.
+    """
     # Create a figure with a 2x2 grid of subplots.
     fig, axs = plt.subplots(2, 2, figsize=(14, 10), constrained_layout=True)
     
     # Create x-axis values (0 to episode inclusive).
     x = np.arange(episode + 1)
     
-    # Get a colormap for throughput, se, pe, su.
-    cmap = plt.get_cmap("tab10", 4)  # We need four distinct colours.
+    # Get a colormap for throughput and fairness.
+    cmap = plt.get_cmap("tab10", 5)
     
-    # Top Left: Throughput.
+    # Top Left: Throughput & Fairness with secondary y-axis.
     ax1 = axs[0, 0]
     ax1.plot(x, throughput[:episode+1], linewidth=2, linestyle="solid",
-             color=cmap(0), alpha=0.8, label="Normalised Total Throughput")
+             color=cmap(0), alpha=0.8, label="Average Throughput")
     ax1.set_xlabel("Episode", fontsize=12)
-    ax1.set_ylabel("Normalised Value", fontsize=12)
-    ax1.set_title("Total Throughput", fontsize=16)
-    ax1.legend(fontsize=10)
+    ax1.set_ylabel("Throughput [Mbps]", fontsize=12)
+    ax1.set_title("Total Throughput & Fairness", fontsize=16)
+    ax1.tick_params(axis='y', labelcolor=cmap(0))
     
-    # Top Right: Reward plot with min/max and IQR area.
+    ax1b = ax1.twinx()
+    ax1b.plot(x, fairness[:episode+1], linewidth=2, linestyle="dashed",
+              color=cmap(4), alpha=0.8, label="Fairness")
+    ax1b.set_ylabel("Fairness (JFI)", fontsize=12)
+    ax1b.set_ylim(0, 1)
+    ax1b.tick_params(axis='y', labelcolor=cmap(4))
+    
+    ax1.legend(loc="upper left", fontsize=8)
+    ax1b.legend(loc="upper right", fontsize=8)
+    
+    # Top Right: Spectral Efficiency.
     ax2 = axs[0, 1]
-    ax2.plot(x, reward[:episode+1], linewidth=2, linestyle="solid",
-             color="black", alpha=0.95, label="Normalised Average Reward")
-    ax2.plot(x, reward_min[:episode+1], linewidth=2, linestyle="dashed",
-             color="black", alpha=0.5, label="Normalised Reward Min")
-    ax2.plot(x, reward_max[:episode+1], linewidth=2, linestyle="dashed",
-             color="black", alpha=0.5, label="Normalised Reward Max")
-    ax2.fill_between(x, reward_min[:episode+1], reward_max[:episode+1],
-                     color="grey", alpha=0.3, label="IQR")
+    ax2.plot(x, se[:episode+1], linewidth=2, linestyle="solid",
+             color=cmap(1), alpha=0.8, label="Spectral Efficiency")
     ax2.set_xlabel("Episode", fontsize=12)
-    ax2.set_ylabel("Normalised Value", fontsize=12)
-    ax2.set_title("Average Reward with IQR", fontsize=16)
-    ax2.legend(fontsize=10)
+    ax2.set_ylabel("Spectral Efficiency [b/s/Hz]", fontsize=12)
+    ax2.set_title("Spectral Efficiency", fontsize=16)
+    ax2.legend(fontsize=8)
     
-    # Bottom Left: Spectral Efficiency (se) and Spectrum Utility (su).
+    # Bottom Left: Power Efficiency.
     ax3 = axs[1, 0]
-    ax3.plot(x, se[:episode+1], linewidth=2, linestyle="solid",
-             color=cmap(1), alpha=0.8, label="Normalised Spectral Efficiency")
-    ax3.plot(x, su[:episode+1], linewidth=2, linestyle="solid",
-             color=cmap(3), alpha=0.8, label="Normalised Spectrum Utility")
+    ax3.plot(x, pe[:episode+1], linewidth=2, linestyle="solid",
+             color=cmap(2), alpha=0.8, label="Power Efficiency")
     ax3.set_xlabel("Episode", fontsize=12)
-    ax3.set_ylabel("Normalised Value", fontsize=12)
-    ax3.set_title("Spectral Efficiency & Spectrum Utility", fontsize=16)
-    ax3.legend(fontsize=10)
+    ax3.set_ylabel("Power Efficiency [W/MHz]", fontsize=12)
+    ax3.set_title("Power Efficiency", fontsize=16)
+    ax3.legend(fontsize=8)
     
-    # Bottom Right: Power Efficiency (pe).
+    # Bottom Right: Reward with IQR.
+    # Compute the average reward and IQR (25th-75th percentiles).
+    reward_mean = np.mean(reward, axis=1)
+    reward_iqr_low = np.percentile(reward, 25, axis=1)
+    reward_iqr_high = np.percentile(reward, 75, axis=1)
+    
     ax4 = axs[1, 1]
-    ax4.plot(x, pe[:episode+1], linewidth=2, linestyle="solid",
-             color=cmap(2), alpha=0.8, label="Normalised Power Efficiency")
+    ax4.plot(x, reward_mean[:episode+1], linewidth=2, linestyle="solid",
+             color="black", alpha=0.95, label="Average Reward")
+    ax4.fill_between(x,
+                     reward_iqr_low[:episode+1],
+                     reward_iqr_high[:episode+1],
+                     color="grey", alpha=0.3, label="IQR (25th-75th)")
     ax4.set_xlabel("Episode", fontsize=12)
-    ax4.set_ylabel("Normalised Value", fontsize=12)
-    ax4.set_title("Power Efficiency", fontsize=16)
-    ax4.legend(fontsize=10)
+    ax4.set_ylabel("Reward", fontsize=12)
+    ax4.set_title("Average Reward with IQR", fontsize=16)
+    ax4.legend(fontsize=8)
     
     # Save the figure.
-    fig.savefig(save_path + "Rewards Tracker.png", dpi=400)
+    fig.savefig(save_path + "Rewards_Tracker.png", dpi=400)
     plt.close(fig)
-
 
 # def plot_total_rewards(episode,
 #                        reward,
@@ -220,30 +257,116 @@ def plot_rewards(episode,
                  step,
                  rewards,
                  save_path="/home/ubuntu/spectrum_sharing/Simulations/"):
-    """ Plot reward functions over time."""
-    # Axis initialisation
-    reward_labels = ["Total Throughput [Mbps]", "Spectral Efficiency [bits/s/Hz]", "Power Efficiency [W/MHz]", "Spectrum Utility [bits/s/Hz]"]
-    reward_titles = ["Total Throughput", "Spectral Efficiency", "Power Efficiency", "Spectrum Utility"]
+    """
+    Plot reward functions over time with fairness on a secondary y-axis.
+
+    The subplots are organized as follows:
+        - Top Left: Total Throughput with Fairness (secondary y-axis).
+        - Top Right: Spectral Efficiency.
+        - Bottom Left: Spectrum Utility.
+        - Bottom Right: Power Efficiency.
+
+    Parameters
+    ----------
+    episode : int
+        The current episode number.
+
+    step : int
+        The number of steps in the episode.
+
+    rewards : numpy.ndarray
+        2D array with shape (step+1, 5) where each column corresponds to a metric:
+            Column 0: Total Throughput [Mbps]
+            Column 1: Throughput Fairness (JFI)
+            Column 2: Spectral Efficiency [bits/s/Hz]
+            Column 3: Power Efficiency [W/MHz]
+            Column 4: Spectrum Utility [bits/s/Hz]
+
+    save_path : str, optional
+        Directory path to save the resulting figure, by default
+        "/home/ubuntu/spectrum_sharing/Simulations/".
+
+    Returns
+    -------
+    None
+        The function saves the plotted figure to the specified path.
+    """
+    # Define labels and titles for the plots.
+    reward_labels = ["Total Throughput [Mbps]",
+                     "Throughput Fairness (JFI)",
+                     "Spectral Efficiency [bits/s/Hz]",
+                     "Power Efficiency [W/MHz]",
+                     "Spectrum Utility [bits/s/Hz]"]
+    
+    reward_titles = ["Total Throughput",
+                     "Spectral Efficiency",
+                     "Spectrum Utility",
+                     "Power Efficiency"]
+    
+    # Create figure with 2x2 grid.
     fig, axes = plt.subplots(2, 2, figsize=(15, 10), constrained_layout=True)
     cmap = plt.get_cmap("tab10", rewards.shape[1])
-
+    
+    # X-axis values.
     upper_x = step + 1
     x = np.linspace(0, step, upper_x)
-
-    for i, ax in enumerate(fig.axes):
-        if i == 2: # power efficiency unit conversion
-            ax.plot(x, rewards[:upper_x,i] * 1e6, linewidth=2, linestyle="solid", color=cmap(i), alpha=0.8)
-        else:
-            ax.plot(x, rewards[:upper_x,i], linewidth=2, linestyle="solid", color=cmap(i), alpha=0.8)
-        ax.set_xlim([0, step])
-        ax.set_title(reward_titles[i], fontsize=16)
+    
+    # Iterate over subplots.
+    for i, ax in enumerate(axes.flat):
+        if i == 0:
+            # Top Left: Throughput and Fairness.
+            ax.plot(x, rewards[:upper_x, 0], linewidth=2, linestyle="solid",
+                    color=cmap(0), alpha=0.8, label="Total Throughput")
+            ax.set_ylim([np.min(rewards[:upper_x, 0]), np.max(rewards[:upper_x, 0])])
+            
+            # Create secondary y-axis for Fairness.
+            ax2 = ax.twinx()
+            ax2.plot(x, rewards[:upper_x, 1], linewidth=2, linestyle="dashed",
+                     color=cmap(1), alpha=0.8, label="Fairness (JFI)")
+            ax2.set_ylim(0, 1)  # Fairness scale 0-1.
+            
+            # Labels and title.
+            ax.set_ylabel(reward_labels[0], fontsize=12)
+            ax2.set_ylabel(reward_labels[1], fontsize=12)
+            ax.set_title(reward_titles[0], fontsize=16)
+            
+            # Legends.
+            ax.legend(loc="upper left", fontsize=10)
+            ax2.legend(loc="upper right", fontsize=10)
+            
+        elif i == 1:
+            # Top Right: Spectral Efficiency (using column 2).
+            ax.plot(x, rewards[:upper_x, 2], linewidth=2, linestyle="solid",
+                    color=cmap(2), alpha=0.8, label="Spectral Efficiency")
+            ax.set_ylim([np.min(rewards[:upper_x, 2]), np.max(rewards[:upper_x, 2])])
+            ax.set_ylabel(reward_labels[2], fontsize=12)
+            ax.set_title(reward_titles[1], fontsize=16)
+            ax.legend(loc="upper left", fontsize=10)
+            
+        elif i == 2:
+            # Bottom Left: Spectrum Utility (using column 4).
+            ax.plot(x, rewards[:upper_x, 4], linewidth=2, linestyle="solid",
+                    color=cmap(4), alpha=0.8, label="Spectrum Utility")
+            ax.set_ylim([np.min(rewards[:upper_x, 4]), np.max(rewards[:upper_x, 4])])
+            ax.set_ylabel(reward_labels[4], fontsize=12)
+            ax.set_title(reward_titles[2], fontsize=16)
+            ax.legend(loc="upper left", fontsize=10)
+            
+        elif i == 3:
+            # Bottom Right: Power Efficiency (using column 3 with conversion).
+            ax.plot(x, rewards[:upper_x, 3] * 1e6, linewidth=2, linestyle="solid",
+                    color=cmap(3), alpha=0.8, label="Power Efficiency")
+            ax.set_ylim([np.min(rewards[:upper_x, 3] * 1e6), np.max(rewards[:upper_x, 3] * 1e6)])
+            ax.set_ylabel(reward_labels[3], fontsize=12)
+            ax.set_title(reward_titles[3], fontsize=16)
+            ax.legend(loc="upper left", fontsize=10)
+        
         ax.set_xlabel("Step", fontsize=12)
-        ax.set_ylabel(reward_labels[i], fontsize=12)
-
-    fig.savefig(save_path + f"Rewards Ep{episode}.png", dpi=400)#, bbox_inches="tight")
-    plt.close()
-
-    return 
+        ax.set_xlim([0, step])
+    
+    # Save and close plot.
+    fig.savefig(save_path + f"Rewards_Ep{episode}.png", dpi=400)
+    plt.close(fig)
 
 def plot_motion(step, 
                 id, 

@@ -295,7 +295,7 @@ class SionnaEnv(gym.Env):
                                  self._norm(1/pe, 1/self.norm_ranges["pe"][1], 1/self.norm_ranges["pe"][0]), # being minimised - careful in defining ranges to avoid division by zero
                                  self._norm(su, self.norm_ranges["su"][0], self.norm_ranges["su"][1])], axis=0)
         
-        indices = tf.constant([[self.timestep, 0], [self.timestep, 1], [self.timestep, 2], [self.timestep, 3], [self.timestep, 5]]) # used for updating preallocated tensor
+        indices = tf.constant([[self.timestep, 0], [self.timestep, 1], [self.timestep, 2], [self.timestep, 3], [self.timestep, 4]]) # used for updating preallocated tensor
         self.rewards = tf.tensor_scatter_nd_update(self.rewards, indices, tf.reshape(updates, (5,)))
 
         self.norm_rewards = tf.tensor_scatter_nd_update(self.norm_rewards, indices, tf.reshape(norm_updates, (5,)))

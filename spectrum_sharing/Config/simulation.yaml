@@ -1,6 +1,6 @@
 # Simulation
 episodes: 1000
-step_limit: 100
+step_limit: 50
 random_seed: 42
 
 # General
@@ -21,7 +21,7 @@ sharing_subcarrier_spacing: 30e3
 primary_fft_size: 660 # approximately 10MHz per primary channel
 sharing_fft_size: 3300 # approximately 100MHz sharing
 batch_size: 1000 # essentially number of Monte Carlo simulations
-cell_size: 2
+cell_size: 2 # resolution of the coverage maps used for simulation
 
 # Model and training
 training_batch_size: 32 # in timesteps
