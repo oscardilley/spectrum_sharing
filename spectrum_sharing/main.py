@@ -118,7 +118,7 @@ if __name__ == "__main__":
             tf.config.experimental.set_memory_growth(gpus[gpu_num], True) # manages memory growth
         except RuntimeError as e:
             logger.critical(e)
-    with initialize(version_base=None, config_path="conf", job_name="simulation"):
+    with initialize(version_base=None, config_path="Config", job_name="simulation"):
         config = compose(config_name="simulation")
         sionna.config.xla_compat=True
         # # Use for determinism:

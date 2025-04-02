@@ -1,4 +1,3 @@
-#!/usr/bin/python3
 """ benchmark.py
 
 Script to test RL model with zero exploration against baseline scenarios. 

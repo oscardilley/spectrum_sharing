@@ -195,14 +195,14 @@ def get_power_efficiency(primary_bw, sharing_bw, sharing_state, primary_power, s
     sharing_state : tf.Tensor
         A tensor indicating the permitted sharing band state (ON/OFF) for 1D of size [Access points].
 
-    primary_power : float
-        Power consumption of the primary network in W.
+    primary_power : tf.Tensor of tf.float32
+        1D tensor of the primary transmission powers for the access points in W.
 
-    sharing_power : float
-        Power consumption of the sharing network in W.
+    sharing_power : tf.Tensor of tf.float32
+        1D tensor of the sharing transmission powers for the access points in W.
 
-    mu_pa : float
-        Power amplifier efficiency, specific to access point.
+    mu_pa : tf.Tensor of tf.float32
+        Power amplifier efficiency, 1D, for each access point.
 
     Returns
     -------
@@ -217,8 +217,6 @@ def get_power_efficiency(primary_bw, sharing_bw, sharing_state, primary_power, s
     combined_pe = (primary_pe + sharing_pe)
 
     return tf.cast(tf.reduce_sum(combined_pe), dtype=tf.float32), tf.cast(combined_pe, dtype=tf.float32)
-
-import tensorflow as tf
 
 def get_spectral_efficiency(primary_bw, sharing_bw, per_ap_per_band_throughput):
     """
@@ -299,3 +297,78 @@ def get_spectrum_utility(primary_bw, sharing_bw, sharing_state, total_throughput
     total_sharing_spectrum = tf.reduce_sum(tf.cast(sharing_state, tf.float32) * sharing_bw)
 
     return  tf.cast(total_throughput * 1e6, dtype=tf.float32) / (total_primary_spectrum + total_sharing_spectrum)
+
+
+def get_power_efficiency_bounds(primary_bw, sharing_bw, primary_power, mu_pa, min_sharing_power, max_sharing_power):
+    """
+    Calculate per-access point and total minimum and maximum power efficiencies in W/MHz.
+
+    Parameters
+    ----------
+    primary_bw : float
+        Bandwidth of the primary network in Hz.
+    sharing_bw : float
+        Bandwidth of the sharing network in Hz.
+    primary_power : tf.Tensor
+        Tensor of primary power values (fixed) for each access point. Shape: [num_APs].
+    mu_pa : tf.Tensor
+        Tensor of power amplifier efficiencies for each access point. Shape: [num_APs].
+    min_sharing_power : tf.Tensor
+        Tensor of minimum sharing power values for each access point. Shape: [num_APs].
+    max_sharing_power : tf.Tensor
+        Tensor of maximum sharing power values for each access point. Shape: [num_APs].
+
+    Returns
+    -------
+    total_eff_min : tf.float32
+        Total minimum efficiency (sum over access points) in W/MHz.
+    total_eff_max : tf.float32
+        Total maximum efficiency (sum over access points) in W/MHz.
+    per_ap_eff_min : tf.Tensor
+        Per-access point minimum efficiency in W/MHz.
+    per_ap_eff_max : tf.Tensor
+        Per-access point maximum efficiency in W/MHz.
+    """
+    # Efficiency when using the primary network only (sharing off)
+    primary_eff = primary_power / (mu_pa * primary_bw)
+
+    # Sharing network efficiency contribution per access point for min and max cases.
+    sharing_eff_min = min_sharing_power / (mu_pa * sharing_bw)
+    sharing_eff_max = max_sharing_power / (mu_pa * sharing_bw)
+
+    # When sharing is turned on, total efficiency is the sum of primary and sharing components.
+    eff_with_sharing_min = primary_eff + sharing_eff_min
+    eff_with_sharing_max = primary_eff + sharing_eff_max
+
+    # For each AP, the minimum possible efficiency is the lower of having sharing off or on (with min sharing power)
+    per_ap_eff_min = tf.minimum(primary_eff, eff_with_sharing_min)
+    
+    # Similarly, the maximum possible efficiency is the higher of having sharing off or on (with max sharing power)
+    per_ap_eff_max = tf.maximum(primary_eff, eff_with_sharing_max)
+
+    # Total efficiency is the sum over all access points.
+    total_eff_min = tf.reduce_sum(per_ap_eff_min)
+    total_eff_max = tf.reduce_sum(per_ap_eff_max)
+
+    return total_eff_min, total_eff_max, per_ap_eff_min, per_ap_eff_max
+
+def get_fairness(per_ue_throughput):
+    """
+    Calculating the Jain's fairness index across the UE throughput values.
+
+    Parameters
+    ----------
+    per_ue_throughput : tf.Tensor of tf.float32
+        1D tensor of the UE throughput values achieved - this should strive to be equal.
+
+    Returns
+    -------
+    fairness : float
+        JFI value, automatically normalised in the range [0,1].
+    """
+    n = len(per_ue_throughput) # number of users
+    numerator = tf.math.square(tf.reduce_sum(per_ue_throughput))
+    denominator = n * tf.reduce_sum(tf.math.square(per_ue_throughput))
+    fairness = numerator / denominator
+
+    return fairness

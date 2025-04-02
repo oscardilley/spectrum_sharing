@@ -10,35 +10,6 @@ import matplotlib.gridspec as gridspec
 import tensorflow as tf
 import numpy as np
 
-# def prop_fair_plotter(timestep, 
-#                       tx,
-#                       grid_alloc, 
-#                       num_users,
-#                       save_path="/home/ubuntu/spectrum_sharing/Simulations/"):
-#     """
-#     Plot the resource allocation grid with a color for each user.
-    
-#     Parameters:
-#       grid_alloc: 2D numpy array with user IDs allocated for each RB.
-#       num_users: total number of users (used for the color mapping).
-#     """
-#     # Create a figure and axis
-#     fig, ax = plt.subplots(figsize=(18, 9))
-    
-#     # Use a colormap with at least 20 distinct colours; 'tab20' supports 20 colours.
-#     cmap = plt.get_cmap('tab20', num_users)
-#     cax = ax.imshow(grid_alloc, aspect='auto', cmap=cmap)
-    
-#     # Add a colorbar and label the ticks with user IDs.
-#     cbar = fig.colorbar(cax, ticks=range(num_users))
-#     cbar.ax.set_yticklabels([f"User {i}" for i in range(num_users)])
-    
-#     ax.set_xlabel('Resource Block Index')
-#     ax.set_ylabel('Time Slot Index')
-#     ax.set_title(f'Resource Block Allocation over 1 Second, for TX {tx}, time {timestep}')
-#     fig.savefig(save_path + f"Scheduler for TX {tx}, time {timestep}.png", dpi=600)
-#     plt.close()
-
 def prop_fair_plotter(timestep, tx, grid_alloc, num_users, user_rates, max_data_sent_per_rb, 
                         save_path="/home/ubuntu/spectrum_sharing/Simulations/"):
     """
@@ -89,7 +60,7 @@ def prop_fair_plotter(timestep, tx, grid_alloc, num_users, user_rates, max_data_
     ax2.set_xlabel('User ID', fontsize=12)
     ax2.set_ylabel('Total RBs Allocated', color='black', fontsize=12)
     ax2.set_xticks(x)
-    ax2.set_xticklabels([f'User {i}' for i in range(num_users)], fontsize=8)
+    ax2.set_xticklabels([f'User {i}' for i in range(num_users)], fontsize=6)
     ax2.tick_params(axis='y', labelcolor='black')
     
     # Right axis: Throughput bars in Mbps (actual values, not normalized)
@@ -137,36 +108,113 @@ def plot_total_rewards(episode,
                        pe,
                        su,
                        save_path="/home/ubuntu/spectrum_sharing/Simulations/"):
-    """ Plot reward functions over time."""
-    # Axis initialisation
-    labels = ["Normalised Average Reward", "Normalised Reward Min", "Normalised Reward Max", "Normalised Total Throughput", "Normalised Spectral Efficiency", "Normalised Power Efficiency", "Normalised Spectrum Utility"]
-    fig, ax = plt.subplots(1, 1, figsize=(10,7), constrained_layout=True)
-    cmap = plt.get_cmap("tab10", len(labels) - 1) # plot the metrics in consistent colours and the total in black
+    """
+    Plot performance metrics on a grid of four subplots:
+      - Top left: Total Throughput.
+      - Top right: Average Reward with min/max lines and IQR fill.
+      - Bottom left: Spectral Efficiency (se) and Spectrum Utility (su) together.
+      - Bottom right: Power Efficiency (pe).
+    """
+    import matplotlib.pyplot as plt
+    import numpy as np
 
-    upper_x = episode + 1
-    x = np.linspace(0, episode, upper_x)
+    # Create a figure with a 2x2 grid of subplots.
+    fig, axs = plt.subplots(2, 2, figsize=(14, 10), constrained_layout=True)
+    
+    # Create x-axis values (0 to episode inclusive).
+    x = np.arange(episode + 1)
+    
+    # Get a colormap for throughput, se, pe, su.
+    cmap = plt.get_cmap("tab10", 4)  # We need four distinct colours.
+    
+    # Top Left: Throughput.
+    ax1 = axs[0, 0]
+    ax1.plot(x, throughput[:episode+1], linewidth=2, linestyle="solid",
+             color=cmap(0), alpha=0.8, label="Normalised Total Throughput")
+    ax1.set_xlabel("Episode", fontsize=12)
+    ax1.set_ylabel("Normalised Value", fontsize=12)
+    ax1.set_title("Total Throughput", fontsize=16)
+    ax1.legend(fontsize=10)
+    
+    # Top Right: Reward plot with min/max and IQR area.
+    ax2 = axs[0, 1]
+    ax2.plot(x, reward[:episode+1], linewidth=2, linestyle="solid",
+             color="black", alpha=0.95, label="Normalised Average Reward")
+    ax2.plot(x, reward_min[:episode+1], linewidth=2, linestyle="dashed",
+             color="black", alpha=0.5, label="Normalised Reward Min")
+    ax2.plot(x, reward_max[:episode+1], linewidth=2, linestyle="dashed",
+             color="black", alpha=0.5, label="Normalised Reward Max")
+    ax2.fill_between(x, reward_min[:episode+1], reward_max[:episode+1],
+                     color="grey", alpha=0.3, label="IQR")
+    ax2.set_xlabel("Episode", fontsize=12)
+    ax2.set_ylabel("Normalised Value", fontsize=12)
+    ax2.set_title("Average Reward with IQR", fontsize=16)
+    ax2.legend(fontsize=10)
+    
+    # Bottom Left: Spectral Efficiency (se) and Spectrum Utility (su).
+    ax3 = axs[1, 0]
+    ax3.plot(x, se[:episode+1], linewidth=2, linestyle="solid",
+             color=cmap(1), alpha=0.8, label="Normalised Spectral Efficiency")
+    ax3.plot(x, su[:episode+1], linewidth=2, linestyle="solid",
+             color=cmap(3), alpha=0.8, label="Normalised Spectrum Utility")
+    ax3.set_xlabel("Episode", fontsize=12)
+    ax3.set_ylabel("Normalised Value", fontsize=12)
+    ax3.set_title("Spectral Efficiency & Spectrum Utility", fontsize=16)
+    ax3.legend(fontsize=10)
+    
+    # Bottom Right: Power Efficiency (pe).
+    ax4 = axs[1, 1]
+    ax4.plot(x, pe[:episode+1], linewidth=2, linestyle="solid",
+             color=cmap(2), alpha=0.8, label="Normalised Power Efficiency")
+    ax4.set_xlabel("Episode", fontsize=12)
+    ax4.set_ylabel("Normalised Value", fontsize=12)
+    ax4.set_title("Power Efficiency", fontsize=16)
+    ax4.legend(fontsize=10)
+    
+    # Save the figure.
+    fig.savefig(save_path + "Rewards Tracker.png", dpi=400)
+    plt.close(fig)
 
-    # Plotting reward min/max
-    ax.plot(x, reward[0:episode+1], linewidth=2, linestyle="solid", color="black", alpha=0.95)
-    ax.plot(x, reward_min[0:episode+1], linewidth=2, linestyle="dashed", color="black", alpha=0.5)
-    ax.plot(x, reward_max[0:episode+1], linewidth=2, linestyle="dashed", color="black", alpha=0.5)
 
-    # Plotting specific normalised components
-    ax.plot(x, throughput[:episode+1], linewidth=2, linestyle="solid", color=cmap(0), alpha=0.8)
-    ax.plot(x, se[:episode+1], linewidth=2, linestyle="solid", color=cmap(1), alpha=0.8)
-    ax.plot(x, pe[:episode+1], linewidth=2, linestyle="solid", color=cmap(2), alpha=0.8)
-    ax.plot(x, su[:episode+1], linewidth=2, linestyle="solid", color=cmap(3), alpha=0.8)
+# def plot_total_rewards(episode,
+#                        reward,
+#                        reward_min,
+#                        reward_max,
+#                        throughput,
+#                        se,
+#                        pe,
+#                        su,
+#                        save_path="/home/ubuntu/spectrum_sharing/Simulations/"):
+#     """ Plot reward functions over time."""
+#     # Axis initialisation
+#     labels = ["Normalised Average Reward", "Normalised Reward Min", "Normalised Reward Max", "Normalised Total Throughput", "Normalised Spectral Efficiency", "Normalised Power Efficiency", "Normalised Spectrum Utility"]
+#     fig, ax = plt.subplots(1, 1, figsize=(10,7), constrained_layout=True)
+#     cmap = plt.get_cmap("tab10", len(labels) - 1) # plot the metrics in consistent colours and the total in black
 
-    ax.set_xlabel("Episode", fontsize=12)
-    ax.set_ylabel("Normalised Value", fontsize=12)
-    ax.set_xlim([0, episode])
-    ax.set_title("Average Performance between Episodes", fontsize=20)
-    ax.legend(labels=labels, fontsize=8)
+#     upper_x = episode + 1
+#     x = np.linspace(0, episode, upper_x)
 
-    fig.savefig(save_path + f"Rewards Tracker.png", dpi=400)#, bbox_inches="tight")
-    plt.close()
+#     # Plotting reward min/max
+#     ax.plot(x, reward[0:episode+1], linewidth=2, linestyle="solid", color="black", alpha=0.95)
+#     ax.plot(x, reward_min[0:episode+1], linewidth=2, linestyle="dashed", color="black", alpha=0.5)
+#     ax.plot(x, reward_max[0:episode+1], linewidth=2, linestyle="dashed", color="black", alpha=0.5)
 
-    return 
+#     # Plotting specific normalised components
+#     ax.plot(x, throughput[:episode+1], linewidth=2, linestyle="solid", color=cmap(0), alpha=0.8)
+#     ax.plot(x, se[:episode+1], linewidth=2, linestyle="solid", color=cmap(1), alpha=0.8)
+#     ax.plot(x, pe[:episode+1], linewidth=2, linestyle="solid", color=cmap(2), alpha=0.8)
+#     ax.plot(x, su[:episode+1], linewidth=2, linestyle="solid", color=cmap(3), alpha=0.8)
+
+#     ax.set_xlabel("Episode", fontsize=12)
+#     ax.set_ylabel("Normalised Value", fontsize=12)
+#     ax.set_xlim([0, episode])
+#     ax.set_title("Average Performance between Episodes", fontsize=20)
+#     ax.legend(labels=labels, fontsize=8)
+
+#     fig.savefig(save_path + f"Rewards Tracker.png", dpi=400)#, bbox_inches="tight")
+#     plt.close()
+
+#     return 
 
 def plot_rewards(episode,
                  step,
@@ -174,7 +222,7 @@ def plot_rewards(episode,
                  save_path="/home/ubuntu/spectrum_sharing/Simulations/"):
     """ Plot reward functions over time."""
     # Axis initialisation
-    reward_labels = ["Total Throughput [MHz]", "Spectral Efficiency [bits/s/Hz]", "Power Efficiency [W/Hz]", "Spectrum Utility [bits/s/Hz]"]
+    reward_labels = ["Total Throughput [Mbps]", "Spectral Efficiency [bits/s/Hz]", "Power Efficiency [W/MHz]", "Spectrum Utility [bits/s/Hz]"]
     reward_titles = ["Total Throughput", "Spectral Efficiency", "Power Efficiency", "Spectrum Utility"]
     fig, axes = plt.subplots(2, 2, figsize=(15, 10), constrained_layout=True)
     cmap = plt.get_cmap("tab10", rewards.shape[1])
@@ -183,14 +231,16 @@ def plot_rewards(episode,
     x = np.linspace(0, step, upper_x)
 
     for i, ax in enumerate(fig.axes):
-        ax.plot(x, rewards[:upper_x,i], linewidth=2, linestyle="solid", color=cmap(i), alpha=0.8)
+        if i == 2: # power efficiency unit conversion
+            ax.plot(x, rewards[:upper_x,i] * 1e6, linewidth=2, linestyle="solid", color=cmap(i), alpha=0.8)
+        else:
+            ax.plot(x, rewards[:upper_x,i], linewidth=2, linestyle="solid", color=cmap(i), alpha=0.8)
         ax.set_xlim([0, step])
         ax.set_title(reward_titles[i], fontsize=16)
         ax.set_xlabel("Step", fontsize=12)
         ax.set_ylabel(reward_labels[i], fontsize=12)
 
     fig.savefig(save_path + f"Rewards Ep{episode}.png", dpi=400)#, bbox_inches="tight")
-    # fig.savefig(save_path + f"Rewards Ep{episode} Step{step}.png", dpi=400)#, bbox_inches="tight")
     plt.close()
 
     return 
