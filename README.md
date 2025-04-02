@@ -119,7 +119,7 @@ Sharing maps:
     ├── benchmark.py
     ├── benchmarks.sh
     ├── channel_simulator.py
-    ├── conf
+    ├── Config
     │   └── simulation.yaml
     ├── image_to_video.py
     ├── logger.py
