@@ -52,7 +52,7 @@ pip install -r requirements.txt
 python3 -m spectrum_sharing.main 
 ```
 
-**Note:** modify configuration through conf/simulation.yaml.
+**Note:** modify configuration through Config/simulation.yaml.
 
 The above block runs _main.py_ which triggers the training routine that takes the following steps:
 1. Load the configuration and initialise the environment and agent.
@@ -86,7 +86,7 @@ Sharing maps:
 ![UE_performance](https://github.com/user-attachments/assets/695db8f2-2bf5-4ed7-ad30-9df79b0887bd)
 
 ### Reward Tracking Across Episodes
-![Rewards Ep0](https://github.com/user-attachments/assets/df47ee99-92be-4dc4-925c-8709359387eb)
+![Rewards Ep1](https://github.com/user-attachments/assets/de6f7892-382f-492e-8065-de99da1c3949)
 
 ### Scheduling Insights
 ![Scheduler_TX_1_Time_6](https://github.com/user-attachments/assets/33b3042e-1bfc-47cb-8350-6c3b36d2fcd1)
@@ -132,7 +132,7 @@ You could benefit from this repo as follows:
 - Implement a new RL algorithm by replacing _DQN_agent.py_ in _main.py_ with another agent for the same observation and action space.
 - Change the agent as above and the observation and action space by modifying/ replacing _DQN_agent.py_ and _RL_simulator.py_.
 - Implement your own scheduler in _scenario_simulator.py_.
-- Modify the system parameters in _conf/simulation.yaml_.
+- Modify the system parameters in _Config/simulation.yaml_.
 - Add a new mobility model in _utils.py_.
 - Change the model rewards in _RL_simulator.py_.
 
