@@ -1,6 +1,9 @@
 # Logging
-logging/*
-assets/*
+logging/
+Assets/
+spectrum_sharing/Assets/
+spectrum_sharing/Simulations/
+Simulations/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
