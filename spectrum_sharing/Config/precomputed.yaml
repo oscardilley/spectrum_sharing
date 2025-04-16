@@ -1,0 +1,88 @@
+# Simulation
+use_pre_gen_maps: True # if True, pre-generated maps are used
+episodes: 1000
+step_limit: 30
+random_seed: 42
+
+# General
+max_results_length: 10 # for plotting
+assets_path: "/home/ubuntu/spectrum_sharing_v0/spectrum_sharing/Assets/"
+images_path: "/home/ubuntu/spectrum_sharing_v0/spectrum_sharing/Simulations/"
+log_path: "/home/ubuntu/spectrum_sharing_v0/spectrum_sharing/Logging/"
+models_path: "/home/ubuntu/spectrum_sharing_v0/spectrum_sharing/Models/"
+buffer_path: "/home/ubuntu/spectrum_sharing_v0/spectrum_sharing/Buffer/"
+test_models_path: "/home/ubuntu/spectrum_sharing_v0/spectrum_sharing/TestModels/"
+scene_path: "/home/ubuntu/spectrum_sharing_v0/spectrum_sharing/Scene/BRISTOL_3/"
+
+# Scene and Sionna
+num_rx: 20
+max_depth: 5 # ray tracer depth
+sharing_carrier_freq: 7425e6
+primary_subcarrier_spacing: 15e3 # WiFi 6 subcarrier spacing would be 78.125, may need to change resource grid to properly change
+sharing_subcarrier_spacing: 30e3 # Changing this will change the number of slots per frame
+primary_fft_size: 120 # needs to be a power of 12RBs - will be rounded to power of 2 fft internally
+sharing_fft_size: 324
+batch_size: 100 # also corresponds to time between episodes when subcarrier_spacing is considered. 1000 and 10000 comparably good.
+cell_size: 1
+
+# Model and training
+training_batch_size: 32 # in timesteps
+training_epochs: 3
+target_network_update_freq: 10 # in episodes
+buffer_max_size: 1000000
+gamma: 0.9 # how is future reward prioritised
+epsilon_start: 1.0
+epsilon_quick_start: 0.9 # for a preloaded model
+epsilon_min: 0.15
+epsilon_decay: 0.9995
+learning_rate: 0.0001
+
+# Normalisation ranges - SINR for example will be clipped to this range
+min_power: 15.0 # in dBm, both inclusive
+max_power: 50.0
+min_sinr: -100 # in dB, constrains normalisation so keep low for sensitivity
+max_sinr: 100
+
+# Transmitters
+transmitters:
+    tx0:
+        name: "tx0"
+        position: [31, -106, 12] # [x,y,z] In the global scene coordinate system not the coverage map and utils system
+        direction: [0, 0, 0]
+        orientation: [0, 0, 0]
+        color: [1, 0, 0]
+        primary_power: 17.0
+        sharing_power: 19.0
+        min_power: 15.0
+        max_power: 23.0
+        state: 0
+        look_at: [10, -50, 10]
+        mu_pa: 0.4
+        primary_carrier_freq: 4145e6
+
+    tx1:
+        name: "tx1"
+        position: [-73, 126, 17]
+        direction: [0, 0, 0]
+        orientation: [0, 0, 0]
+        color: [1, 0, 0]
+        primary_power: 25.0
+        sharing_power: 25.0
+        min_power: 20.0
+        max_power: 30.0
+        state: 0
+        look_at: [-50, 115, 10]
+        mu_pa: 0.5
+        primary_carrier_freq: 3425e6
+
+    # tx2:
+    #     name: "tx2"
+    #     position: [0,0,0] # transmitter and receiver structure needs to be the same - may need to include Doppler
+    #     direction: [0, 0, 0]
+    #     orientation: [0, 0, 0]
+    #     color: [1, 0, 0]
+    #     primary_power: 21.0
+    #     sharing_power: 21.0
+    #     look_at: [0, 0, 0]
+    #     mu_pa: 0.2
+    #     primary_carrier_freq: 5000e6

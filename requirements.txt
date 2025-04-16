@@ -1,0 +1,11 @@
+sionna==0.19.0 # codebase needs major revision to move to 1.0.1
+mitsuba==3.4.0 # needs removing for 0.19.0
+tensorflow[and-cuda] # ==2.19.0 for 1.0.1
+jupyter
+hydra-core
+tinydb
+runipy
+pandas
+gymnasium
+colorlog
+opencv-python
