@@ -56,7 +56,7 @@ def main(cfg):
             next_observation, reward, terminated, truncated, info = env.step(action) 
 
             if next_observation is None: 
-                logger.critical("Exiting episode after error to prevent propagation.")
+                logger.critical("Exiting episode prematurely after error to prevent propagation.")
                 break
 
             buffer.add((observation, action_id, reward, next_observation, terminated), env.timestep) # consider adding truncated OR terminated

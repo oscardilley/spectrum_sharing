@@ -1,8 +1,8 @@
 # Logging
 logging/
-# Assets/
-# spectrum_sharing/Assets/
-# spectrum_sharing/Simulations/
+Assets/
+spectrum_sharing/Assets/
+spectrum_sharing/Simulations/
 Simulations/
 
 # Byte-compiled / optimized / DLL files

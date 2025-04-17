@@ -79,25 +79,31 @@ class PrecomputedEnv(gym.Env):
             powers[id] = powers[id] + list(range(int(tx["min_power"]), int(tx["max_power"]) + 1))
         self.powers = list(product(*[powers[id] for id in range(self.num_tx)])) # all possible combinations of powers
 
-        while True:
-            try:
-                # Getting an initial action randomly to get an initial state
-                self.initial_action = self.possible_actions[np.random.randint(0,self.num_actions)] 
-                self.sharing_state = tf.convert_to_tensor([bool(tx_action[0]) for tx_action in self.initial_action], dtype=tf.bool)
+        initial_action = self.possible_actions[np.random.randint(0,self.num_actions)] 
+        self.sharing_state = tf.convert_to_tensor([bool(tx_action[0]) for tx_action in initial_action], dtype=tf.bool)
+        for id, a in enumerate(initial_action):
+            self.transmitters[f"tx{id}"]["state"] = int(a[0]) # apply the state
 
-                # Applying the initial state
-                for id, a in enumerate(self.initial_action):
-                    self.transmitters[f"tx{id}"]["state"] = int(a[0]) # apply the state
-                    if a[1] == 0: # reduce power, action mask should protect
-                        self.transmitters[f"tx{id}"]["sharing_power"] -= 1
-                    elif a[1] == 2: # increase power
-                        self.transmitters[f"tx{id}"]["sharing_power"] += 1
-                powers_index = tuple([int(tx["sharing_power"] * self.initial_action[id][0]) for id,tx in enumerate(self.transmitters.values())])
-                self.state = self.powers.index(powers_index)
-                break
-            except:
-                logger.warning("Invalid initial action, retrying.")
-                continue
+        # while True:
+        #     try:
+        #         # Getting an initial action randomly to get an initial state
+        #         self.initial_action = self.possible_actions[np.random.randint(0,self.num_actions)] 
+        #         self.sharing_state = tf.convert_to_tensor([bool(tx_action[0]) for tx_action in self.initial_action], dtype=tf.bool)
+        #         transmitters_temp = self.transmitters
+        #         # Applying the initial state
+        #         for id, a in enumerate(self.initial_action):
+        #             self.transmitters[f"tx{id}"]["state"] = int(a[0]) # apply the state
+        #             if a[1] == 0: # reduce power, action mask should protect
+        #                 self.transmitters[f"tx{id}"]["sharing_power"] -= 1
+        #             elif a[1] == 2: # increase power
+        #                 self.transmitters[f"tx{id}"]["sharing_power"] += 1
+        #         powers_index = tuple([int(tx["sharing_power"] * self.initial_action[id][0]) for id, tx in enumerate(self.transmitters.values())])
+        #         self.state = self.powers.index(powers_index)
+        #         break
+        #     except:
+        #         self.transmitters = transmitters_temp # avoids spiralling power values if invalid index
+        #         logger.warning("Invalid initial action, retrying.")
+        #         continue
         
         # Initialising Sionna just to get meta data
         for id, tx in enumerate(self.transmitters.values()):
@@ -228,25 +234,33 @@ class PrecomputedEnv(gym.Env):
         # Resetting key attributes
         self.users = update_users(self.valid_area, self.cfg.num_rx, self.users) # getting initial user positions.
 
-        while True:
-            try:
-                # Getting an initial action randomly to get an initial state
-                self.initial_action = self.possible_actions[np.random.randint(0,self.num_actions)] 
-                self.sharing_state = tf.convert_to_tensor([bool(tx_action[0]) for tx_action in self.initial_action], dtype=tf.bool)
+        initial_action = self.possible_actions[np.random.randint(0,self.num_actions)] 
+        self.sharing_state = tf.convert_to_tensor([bool(tx_action[0]) for tx_action in initial_action], dtype=tf.bool)
+        for id, a in enumerate(initial_action):
+            self.transmitters[f"tx{id}"]["state"] = int(a[0]) # apply the state
+        powers_index = tuple([int(tx["sharing_power"] * initial_action[tx_id][0]) for tx_id, tx in enumerate(self.transmitters.values())])
+        self.state = self.powers.index(powers_index)
 
-                # Applying the initial state
-                for id, a in enumerate(self.initial_action):
-                    self.transmitters[f"tx{id}"]["state"] = int(a[0]) # apply the state
-                    if a[1] == 0: # reduce power, action mask should protect
-                        self.transmitters[f"tx{id}"]["sharing_power"] -= 1
-                    elif a[1] == 2: # increase power
-                        self.transmitters[f"tx{id}"]["sharing_power"] += 1
-                powers_index = tuple([int(tx["sharing_power"] * self.initial_action[id][0]) for id,tx in enumerate(self.transmitters.values())])
-                self.state = self.powers.index(powers_index)
-                break
-            except:
-                logger.warning("Invalid initial action, retrying.")
-                continue
+        # while True:
+        #     try:
+        #         # Getting an initial action randomly to get an initial state
+        #         self.initial_action = self.possible_actions[np.random.randint(0,self.num_actions)] 
+        #         self.sharing_state = tf.convert_to_tensor([bool(tx_action[0]) for tx_action in self.initial_action], dtype=tf.bool)
+        #         transmitters_temp = self.transmitters
+        #         # Applying the initial state
+        #         for id, a in enumerate(self.initial_action):
+        #             self.transmitters[f"tx{id}"]["state"] = int(a[0]) # apply the state
+        #             if a[1] == 0: # reduce power, action mask should protect
+        #                 self.transmitters[f"tx{id}"]["sharing_power"] -= 1
+        #             elif a[1] == 2: # increase power
+        #                 self.transmitters[f"tx{id}"]["sharing_power"] += 1
+        #         powers_index = tuple([int(tx["sharing_power"] * self.initial_action[id][0]) for id,tx in enumerate(self.transmitters.values())])
+        #         self.state = self.powers.index(powers_index)
+        #         break
+        #     except:
+        #         self.transmitters = transmitters_temp # avoids spiralling power values if invalid index
+        #         logger.warning("Invalid initial action, retrying.")
+        #         continue
 
         return self._get_obs()
 
@@ -294,7 +308,8 @@ class PrecomputedEnv(gym.Env):
         try:
             self.state = self.powers.index(powers_index)
         except:
-            raise Exception("Power index not found.")
+            logger.critical("Power index not found.")
+            return None, None, None, None, None # truncates episode and stops error propagation without exiting
         
         self.sharing_sinr_map = self.sharing_sinr_maps[self.state]
         self.sharing_bler_map = self.sharing_bler_maps[self.state]
