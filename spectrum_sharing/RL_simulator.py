@@ -7,11 +7,9 @@ Wrapping Sionna logic inside a gymnasium wrapper for reinforcement learning.
 import tensorflow as tf
 import numpy as np
 import gymnasium as gym
-from time import perf_counter
 from gymnasium import spaces
 from itertools import product
 import math
-import matplotlib.pyplot as plt
 
 from spectrum_sharing.plotting import plot_motion, plot_performance, plot_rewards, prop_fair_plotter
 from spectrum_sharing.utils import update_users, get_throughput, get_spectral_efficiency, get_power_efficiency, get_spectrum_utility, get_power_efficiency_bounds, get_fairness
@@ -83,27 +81,6 @@ class PrecomputedEnv(gym.Env):
         self.sharing_state = tf.convert_to_tensor([bool(tx_action[0]) for tx_action in initial_action], dtype=tf.bool)
         for id, a in enumerate(initial_action):
             self.transmitters[f"tx{id}"]["state"] = int(a[0]) # apply the state
-
-        # while True:
-        #     try:
-        #         # Getting an initial action randomly to get an initial state
-        #         self.initial_action = self.possible_actions[np.random.randint(0,self.num_actions)] 
-        #         self.sharing_state = tf.convert_to_tensor([bool(tx_action[0]) for tx_action in self.initial_action], dtype=tf.bool)
-        #         transmitters_temp = self.transmitters
-        #         # Applying the initial state
-        #         for id, a in enumerate(self.initial_action):
-        #             self.transmitters[f"tx{id}"]["state"] = int(a[0]) # apply the state
-        #             if a[1] == 0: # reduce power, action mask should protect
-        #                 self.transmitters[f"tx{id}"]["sharing_power"] -= 1
-        #             elif a[1] == 2: # increase power
-        #                 self.transmitters[f"tx{id}"]["sharing_power"] += 1
-        #         powers_index = tuple([int(tx["sharing_power"] * self.initial_action[id][0]) for id, tx in enumerate(self.transmitters.values())])
-        #         self.state = self.powers.index(powers_index)
-        #         break
-        #     except:
-        #         self.transmitters = transmitters_temp # avoids spiralling power values if invalid index
-        #         logger.warning("Invalid initial action, retrying.")
-        #         continue
         
         # Initialising Sionna just to get meta data
         for id, tx in enumerate(self.transmitters.values()):
@@ -240,27 +217,6 @@ class PrecomputedEnv(gym.Env):
             self.transmitters[f"tx{id}"]["state"] = int(a[0]) # apply the state
         powers_index = tuple([int(tx["sharing_power"] * initial_action[tx_id][0]) for tx_id, tx in enumerate(self.transmitters.values())])
         self.state = self.powers.index(powers_index)
-
-        # while True:
-        #     try:
-        #         # Getting an initial action randomly to get an initial state
-        #         self.initial_action = self.possible_actions[np.random.randint(0,self.num_actions)] 
-        #         self.sharing_state = tf.convert_to_tensor([bool(tx_action[0]) for tx_action in self.initial_action], dtype=tf.bool)
-        #         transmitters_temp = self.transmitters
-        #         # Applying the initial state
-        #         for id, a in enumerate(self.initial_action):
-        #             self.transmitters[f"tx{id}"]["state"] = int(a[0]) # apply the state
-        #             if a[1] == 0: # reduce power, action mask should protect
-        #                 self.transmitters[f"tx{id}"]["sharing_power"] -= 1
-        #             elif a[1] == 2: # increase power
-        #                 self.transmitters[f"tx{id}"]["sharing_power"] += 1
-        #         powers_index = tuple([int(tx["sharing_power"] * self.initial_action[id][0]) for id,tx in enumerate(self.transmitters.values())])
-        #         self.state = self.powers.index(powers_index)
-        #         break
-        #     except:
-        #         self.transmitters = transmitters_temp # avoids spiralling power values if invalid index
-        #         logger.warning("Invalid initial action, retrying.")
-        #         continue
 
         return self._get_obs()
 
