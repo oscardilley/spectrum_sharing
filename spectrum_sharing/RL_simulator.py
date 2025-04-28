@@ -390,6 +390,8 @@ class PrecomputedEnv(gym.Env):
             raise ValueError(f"SE value {se} is out of range: {self.norm_ranges['se']}")
         if not (self.norm_ranges["pe"][0] <= pe <= self.norm_ranges["pe"][1]):
             raise ValueError(f"PE value {pe} is out of range: {self.norm_ranges['pe']}")
+        if not (0 <= fairness <= 1):
+            raise ValueError(f"Jain's fairness value {fairness} is out of range: [0, 1]")
         if not (self.norm_ranges["su"][0] <= su <= self.norm_ranges["su"][1]):
             raise ValueError(f"SU value {su} is out of range: {self.norm_ranges['su']}")
 
