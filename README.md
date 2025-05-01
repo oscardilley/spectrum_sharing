@@ -95,7 +95,7 @@ Sharing maps:
 <img src="https://github.com/user-attachments/assets/695db8f2-2bf5-4ed7-ad30-9df79b0887bd">
 
 ### Reward Tracking Across Episodes
-<img src="https://github.com/user-attachments/assets/de6f7892-382f-492e-8065-de99da1c3949">
+![Rewards_Tracker](https://github.com/user-attachments/assets/b31b3aae-3b27-424b-8ddf-f07781419b17)
 
 ### Scheduling Insights
 ![Scheduler_TX_1_Time_6](https://github.com/user-attachments/assets/33b3042e-1bfc-47cb-8350-6c3b36d2fcd1)
