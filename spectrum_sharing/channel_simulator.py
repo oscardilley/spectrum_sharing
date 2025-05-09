@@ -72,8 +72,9 @@ class ChannelSimulator(tf.keras.Model):
         self.pusch_config.carrier.n_size_grid = int(fft_size / 12) # 12 subcarriers in a RB in 5G NR
         self.pusch_config.carrier.subcarrier_spacing = int(subcarrier_spacing / 1000)
         self.channel = ApplyOFDMChannel(add_awgn=True)
+    
         self.pusch_transmitter = PUSCHTransmitter(self.pusch_config) 
-        self.pusch_receiver = PUSCHReceiver(self.pusch_transmitter) 
+        self.pusch_receiver = PUSCHReceiver(self.pusch_transmitter) #, channel_estimator="perfect") 
 
         # Channels between each transmitter and receiver
         self.h_freq = None
@@ -84,34 +85,61 @@ class ChannelSimulator(tf.keras.Model):
 
     def update_channel(self, num_active_tx, a, tau):
         # Call when changing simulation channel without creating new instance - performance benefits with jit compilation.
+        # Assumption - 1x1 reciever array for now
         self.num_tx = num_active_tx
-        self.h_freq = tf.stack([cir_to_ofdm_channel(self.frequencies, a[:,i:i+1,:,j:j+1,:,:,:], tau[:,i:i+1,j:j+1,:], normalize=True) for j in range(self.num_tx) for i in range(self.num_rx)], axis=0)
-
+        # Do not normalise channel as we want to maintain power relationships
+        self.h_freq = cir_to_ofdm_channel(self.frequencies, a, tau, normalize=False) # [batch size, num_rx, num_rx_ant, num_tx, num_tx_ant, num_time_steps, fft_size]
 
     def update_sinr(self, sinr):
         # Call when changing simulation channel without creating new instance - performance benefits with jit compilation.
-        M = np.array(self.pusch_config.tb.num_bits_per_symbol)
-        R = np.array(self.pusch_config.tb.target_coderate)
+        print(sinr)
+        M = float(self.pusch_config.tb.num_bits_per_symbol)
+        R = float(self.pusch_config.tb.target_coderate)
         ebno = sinr - (10 * np.log10(R * M)) # SINR to EbNo conversion
         self.sinr = sinr
-        # Noise variance dependent on the SINR, this enables handling interference
         self.sinr_no = tf.clip_by_value(tf.convert_to_tensor([ebnodb2no(item,
             self.pusch_transmitter._num_bits_per_symbol, 
             self.pusch_transmitter._target_coderate, 
             self.pusch_transmitter.resource_grid) for item in ebno]), 0, 100) # clipped to arbitarily high value for when there is no signal
-
-    @tf.function(jit_compile=True, reduce_retracing=True)
+        
+    # @tf.function(jit_compile=True, reduce_retracing=True)
     def iterate(self, ins):
         h, noise = ins
-        y = self.channel([self.x, h, noise]) # noise is due to the physical channel effects and noise
-        b_hat = self.pusch_receiver([y, noise]) # noise if used for decoding
-        bler = compute_bler(self.b, b_hat)
-        return bler
+        h = tf.repeat(h, repeats=self.x.shape[0], axis=0)
+        noise = 0.001
+        y = self.channel([self.x, h, noise])
+        # b_hat = self.pusch_receiver([y, h, noise]) # for perfect channel estimation
+        b_hat = self.pusch_receiver([y, noise])
+
+        return compute_bler(self.b, b_hat), compute_ber(self.b, b_hat)
+
 
     # Do not use @tf.function as attributes will not update
-    def call(self, block_size):
-        self.x, self.b = self.pusch_transmitter(block_size)  
-        bler_per_link = tf.map_fn(self.iterate, elems=(self.h_freq, self.sinr_no), fn_output_signature=tf.float64)
- 
+    def call(self, batch_size):
+        num_links = self.num_rx * self.num_tx
+        self.x, self.b = self.pusch_transmitter(batch_size) # create a different set of bits for batch element
+
+        # Note that in antenna elements, Sionna treats polarisations are separate ports
+        per_link_h = []
+        flattened_sinr =[]
+        for j in range(self.num_tx):
+            for i in range(self.num_rx):
+                h_ij = self.h_freq[:,i:i+1,:,j:j+1,:,:,:]  # [batch, 1, rx_ant, 1, tx_ant, time, fft]
+                per_link_h.append(h_ij)
+                flattened_sinr.append(self.sinr_no[j * self.num_rx + i]) # [num_rx, num_tx] flattened
+
+        h_freq_links = tf.stack(per_link_h, axis=0) 
+        noise = tf.convert_to_tensor(flattened_sinr)
+        print("Noise:", noise)
+        bler_per_link, ber_per_link = tf.map_fn(self.iterate, elems=(h_freq_links, noise), fn_output_signature=(tf.float64, tf.float64)) # repeated for each link
+        
+        # How do we ensure that the BLER and BER order corresponds to the SINR order
+        print("BER per link:", ber_per_link)
+        print("SINR values:", self.sinr)
+        print("BLER:", tf.reshape(bler_per_link, (self.num_tx, self.num_rx)))
+        print("BER:", tf.reshape(ber_per_link, (self.num_tx, self.num_rx)))
+        print("SINR:", tf.reshape(self.sinr, (self.num_tx, self.num_rx)))
+
         return tf.reshape(bler_per_link, (self.num_tx, self.num_rx)), tf.reshape(self.sinr, (self.num_tx, self.num_rx))
+
 

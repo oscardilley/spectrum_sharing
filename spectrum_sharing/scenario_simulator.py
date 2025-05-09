@@ -78,8 +78,11 @@ class FullSimulator:
     transmitters : dict
         Updated transmitter dict with modified power levels or position for example.
 
-    timestep :
+    timestep : int
         Defaults to None for episode initialisation.
+
+    mcs: tuple
+        Tuple of (MWC table, MCS index) to dynamically change the MCS assignment.
 
     Outputs
     -------
@@ -133,7 +136,7 @@ class FullSimulator:
                                           self.num_rx, 
                                           self.subcarrier_spacing,
                                           self.fft_size)
-        
+
         # Calculates instantaneous max data rate, accounting for the numerology - same for all users as not changing MCS and therefore not changing TB size
         self.max_data_rate = (self.simulator.pusch_config.tb_size * self.simulator.pusch_config.carrier.num_slots_per_frame) / self.simulator.pusch_config.carrier.frame_duration
         # Proportional fair scheduler parameter approximation, assuming single user MIMO and 1000 slots as we are stepping in 1s increments of 1s
@@ -167,7 +170,7 @@ class FullSimulator:
         """ Creating the simulation scene, only called once during intialisation."""
         sn = load_scene(self.scene_name)
         sn.add(Camera("cam1", position=[300, -320, 230], look_at=sn.center))
-        sn.add(Camera("cam2", position=[sn.center.numpy()[0],sn.center.numpy()[1],500], orientation=[np.pi/2, np.pi/2,-np.pi/2]))
+        sn.add(Camera("cam2", position=[sn.center.numpy()[0],sn.center.numpy()[1],600], orientation=[np.pi/2, np.pi/2,-np.pi/2]))
 
         sn.synthetic_array=True # False = ray tracing done per antenna element
         sn.frequency = self.carrier_frequency
@@ -220,10 +223,10 @@ class FullSimulator:
 
         # Generating a coverage map for max power to establish valid UE regions
         cm = self.scene.coverage_map(max_depth=self.max_depth,           # Maximum number of ray scene interactions
-                                     diffraction=True,
-                                     scattering=True, 
-                                     cm_cell_size=(self.cell_size, self.cell_size),   # Resolution of the coverage map, smaller is better
-                                     )
+                                diffraction=True,
+                                scattering=True, 
+                                cm_cell_size=(self.cell_size, self.cell_size),   # Resolution of the coverage map, smaller is better
+                                )
         
         
         return cm, cm.sinr # [num_tx, num_cells_y, num_cells_x], tf.float
@@ -240,7 +243,7 @@ class FullSimulator:
         
         return grid
 
-    def __call__(self, receivers, state, transmitters=None, timestep=None):
+    def __call__(self, receivers, state, transmitters=None, timestep=None, mcs=None):
         """ Running an episode with proportional fair scheduling. """
         # NB: SINR in dB here, different to coverage maps
         blers = [] # used to estimate throughput
@@ -249,6 +252,19 @@ class FullSimulator:
         count = 0
         # Updating transmitters
         self.transmitters = transmitters
+
+        # mcs = (1, 2)
+
+        if mcs:
+            logger.warning(f"Changing to MCS: {mcs}")
+            self.simulator.pusch_config.tb.mcs_table = mcs[0]
+            self.simulator.pusch_config.tb.mcs_index = mcs[1] 
+            self.max_data_rate = (self.simulator.pusch_config.tb_size * self.simulator.pusch_config.carrier.num_slots_per_frame) / self.simulator.pusch_config.carrier.frame_duration
+            # Proportional fair scheduler parameter approximation, assuming single user MIMO and 1000 slots as we are stepping in 1s increments of 1s
+            self.num_slots = self.simulator.pusch_config.carrier.num_slots_per_frame / self.simulator.pusch_config.carrier.frame_duration # 1000 for u=0, 2000 for u=1, etc. 
+            self.number_rbs = self.simulator.pusch_config.num_resource_blocks # number of resource blocks in the carrier resource grid
+            self.max_data_sent_per_rb = self.max_data_rate / (self.num_slots * self.number_rbs) # bits per RB over 14 OFDM symbols
+            logger.warning(f"Updated max data per RB etc.")
 
         # Apply the state and update the coverage map to obtain new 
         self.state = state
@@ -266,15 +282,22 @@ class FullSimulator:
 
         # Updating the receivers
         per_rx_sinr = self.update_receivers(receivers)
-        paths = self.scene.compute_paths(max_depth=self.max_depth, diffraction=True)
-        paths.normalize_delays = False
+        paths = self.scene.compute_paths(max_depth=self.max_depth, diffraction=True, scattering=True, los=True, reflection=True)
+        # paths.normalize_delays = False # use to set tau = 0 for first path for any tx rx pair, defaults to True
 
-        paths.apply_doppler(sampling_frequency=self.subcarrier_spacing,
-                            num_time_steps=self.num_time_steps, # Number of OFDM symbols
-                            #tx_velocities=[self.cell_size * tf.convert_to_tensor(transmitter["direction"], dtype=tf.int64) for transmitter in self.transmitters.values()], # [batch_size, num_tx, 3] shape
-                            rx_velocities=[self.cell_size * receiver["direction"] for receiver in receivers.values()]) # [batch_size, num_rx, 3] shape
+        # paths.apply_doppler(sampling_frequency=self.subcarrier_spacing,
+        #                     num_time_steps=self.num_time_steps, # Number of OFDM symbols
+        #                     #tx_velocities=[self.cell_size * tf.convert_to_tensor(transmitter["direction"], dtype=tf.int64) for transmitter in self.transmitters.values()], # [batch_size, num_tx, 3] shape
+        #                     rx_velocities=[self.cell_size * receiver["direction"] for receiver in receivers.values()]) # [batch_size, num_rx, 3] shape # do I need to reverse the receiver direction
        
         a, tau = paths.cir(los=True) # generating the channel impulse response
+
+        # Plotting the scene with paths and coverage
+        self.scene.render_to_file(camera="cam1", filename=self.cfg.images_path + f"cam1_{self.prefix}_scene.png", paths = paths, coverage_map=self.cm, cm_metric="sinr", resolution=[1310, 1000], fov=55) 
+        self.scene.render_to_file(camera="cam2", filename=self.cfg.images_path+ f"cam2_{self.prefix}_scene.png", paths = paths, coverage_map=self.cm, cm_metric="sinr", resolution=[1310, 1000], fov = 55) 
+    
+        # print(a.shape) # [batch_size, num_rx, num_rx_ant, num_tx, num_tx_ant, max_num_paths, num_time_steps]
+        # print(tau.shape) # [batch_size, num_rx, num_rx_ant, num_tx, num_tx_ant, max_num_paths]
 
         num_active_tx = int(tf.reduce_sum(tf.cast(self.state, tf.int32)))
         self.simulator.update_channel(num_active_tx, a, tau)
@@ -282,7 +305,7 @@ class FullSimulator:
 
         # Bit level simulation
         start = perf_counter()
-        bler, sinr = self.simulator(block_size=self.batch_size)
+        bler, sinr = self.simulator(batch_size=self.batch_size)
         end = perf_counter()
         total = round(end - start, 3)
         logger.info(f"Time taken for bit level simulation: {total}")
@@ -347,15 +370,19 @@ class FullSimulator:
         Changing the receivers within the scene. Note: coordinate handling is delicate between Sionna scenes, coverage maps and utility functions. 
         """
         per_rx_sinr_db = []
-        max_x = float(self.scene.size[0].numpy())
-        max_y = float(self.scene.size[1].numpy())
+        max_x = float(self.global_size[0]) # 360m
+        max_y = float(self.global_size[1]) # 392m
+        # print("max_x, max_y", max_x, max_y)
+        # print("global size", self.global_size) # [360, 392, 21] [x,y,z]
+        # print("center transform", self.center_transform) # [-20,6,0] assumed [x,y,z]
+
         if len(self.scene.receivers) == 0:
             # Adding receivers for the first time. 
             for rx_id, rx in enumerate(receivers.values()):
-                reversed_coords = np.array([rx["position"][1], rx["position"][0], rx["position"][2]])
-                pos = (reversed_coords * self.cell_size) - np.array([round(max_x/2), round(max_y/2), 0]) + self.center_transform
+                reversed_coords = np.array([rx["position"][1], rx["position"][0], rx["position"][2]]) # [y,x,z] -> [x,y,z], # rx["position"] is in [y,x,z]
+                pos = (reversed_coords * self.cell_size) - np.array([round(max_x/2), round(max_y/2), 0]) + self.center_transform # transform confirmed 
                 self.scene.add(Receiver(name=f"rx{rx_id}",
-                                        position=pos, 
+                                        position=pos, # should be [x,y,z] in m 
                                         color=rx["color"],)) 
                 sinr_db = 10 * tf.math.log(self.sinr[:,rx["position"][0], rx["position"][1]]) / tf.math.log(10.0) # log of zero will occur here, causing inf, clipped later
                 per_rx_sinr_db.append(sinr_db)                        
@@ -365,7 +392,7 @@ class FullSimulator:
                 reversed_coords = np.array([rx["position"][1], rx["position"][0], rx["position"][2]])
                 pos = (reversed_coords * self.cell_size) - np.array([round(max_x/2), round(max_y/2), 0]) + self.center_transform
                 self.scene.receivers[f"rx{rx_id}"].position = pos
-                sinr_db = 10 * tf.math.log(self.sinr[:,rx["position"][0], rx["position"][1]]) / tf.math.log(10.0)
+                sinr_db = 10 * tf.math.log(self.sinr[:,rx["position"][0], rx["position"][1]]) / tf.math.log(10.0) # self.sinr shape is [tx, y, x]
                 per_rx_sinr_db.append(sinr_db)    
         self.receivers = receivers
 

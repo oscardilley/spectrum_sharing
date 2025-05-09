@@ -364,7 +364,7 @@ def plot_rewards(episode,
         ax.set_xlim([0, step])
     
     # Save and close plot.
-    fig.savefig(save_path + f"Rewards_Ep{episode}.png", dpi=400)
+    fig.savefig(save_path + f"Rewards_Ep_{episode}.png", dpi=400)
     plt.close(fig)
 
 def plot_motion(step, 
@@ -390,9 +390,9 @@ def plot_motion(step,
     dx = [ue["direction"][1] for ue in users.values()]
     dy = [ue["direction"][0] for ue in users.values()]
 
-    # Transmitters - positions adjusted to cm coordinate system
-    tx_x_positions = [transmitter["position"][0]/cell_size + (x_max/cell_size) for transmitter in transmitters.values()]
-    tx_y_positions = [transmitter["position"][1]/cell_size + (y_max/cell_size) for transmitter in transmitters.values()]
+    # # Transmitters - positions adjusted to cm coordinate system - currently got a bug due to centre of grids not being at 0,0
+    # tx_x_positions = [transmitter["position"][0]/cell_size + (x_max/2/*cell_size) for transmitter in transmitters.values()]
+    # tx_y_positions = [transmitter["position"][1]/cell_size + (y_max/2*cell_size) for transmitter in transmitters.values()]
 
     # Axis initialisation
     if ax is None or fig is None:
@@ -406,9 +406,9 @@ def plot_motion(step,
         ax.set_xlim([0, x_max])
         ax.set_ylim([0, y_max])
 
-        ax.scatter(
-                    tx_x_positions, tx_y_positions, s=1000, c="r", marker="*"
-                  )
+        # ax.scatter(
+        #             tx_x_positions, tx_y_positions, s=1000, c="r", marker="*"
+        #           )
 
     else:
         [arrow.remove() for arrow in ax.findobj(match=mpl.quiver.Quiver)]

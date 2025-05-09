@@ -10,6 +10,7 @@ import gymnasium as gym
 from gymnasium import spaces
 from itertools import product
 import math
+import matplotlib.pyplot as plt
 
 from spectrum_sharing.plotting import plot_motion, plot_performance, plot_rewards, prop_fair_plotter
 from spectrum_sharing.utils import update_users, get_throughput, get_spectral_efficiency, get_power_efficiency, get_spectrum_utility, get_power_efficiency_bounds, get_fairness
@@ -26,13 +27,16 @@ class PrecomputedEnv(gym.Env):
     cfg : dict
         Top level configuration dictionary.
 
+    test : bool
+        Flag indicating if in test mode. Changes what is plotted.
+
     Usage
     ------
     Call reset() to initialise episode.
     Call step() to advance episode.
     Call render() to visualise.
     """
-    def __init__(self, cfg):
+    def __init__(self, cfg, test=False):
         """ Initialisation of the environment. """
         self.cfg = cfg
         self.limit = cfg.step_limit
@@ -43,6 +47,11 @@ class PrecomputedEnv(gym.Env):
         self.sharing_bandwidth = self.cfg.sharing_fft_size * self.cfg.primary_subcarrier_spacing
         self.primaryBands = {}
         self.initial_states = {}
+        self.test = test
+        if self.test:
+            self.images_path = self.cfg.test_images_path
+        else:
+            self.images_path = self.cfg.images_path
 
         # Set up gym standard attributes
         self.truncated = False
@@ -103,7 +112,7 @@ class PrecomputedEnv(gym.Env):
         # Setting up the sharing band
         self.sharingBand = FullSimulator(cfg=self.cfg,
                                          prefix="sharing",
-                                         scene_name=cfg.scene_path + "simple_OSM_scene.xml",
+                                         scene_name= cfg.scene_path + "simple_OSM_scene.xml",
                                          carrier_frequency=self.cfg.sharing_carrier_freq,
                                          pmax=self.cfg.max_power, # maximum power for initial mapping of coverage area
                                          transmitters=self.transmitters,
@@ -276,47 +285,47 @@ class PrecomputedEnv(gym.Env):
             sinrs = []
             rates = []
             for tx_id, tx in enumerate(self.transmitters.values()):
-                # sinr_image = sinr_map[tx_id]
-                # bler_image = bler_map[tx_id]
+                sinr_image = sinr_map[tx_id]
+                bler_image = bler_map[tx_id]
 
-                # height, width = sinr_image.shape
+                height, width = sinr_image.shape
 
-                # plt.figure(figsize=(12, 5))
+                plt.figure(figsize=(12, 5))
 
-                # # --- SINR Plot ---
-                # plt.subplot(1, 2, 1)
-                # plt.imshow(sinr_image, origin='lower', cmap='viridis', vmin=self.cfg.min_sinr, vmax=self.cfg.max_sinr)
-                # plt.colorbar(label='SINR (dB)')
-                # plt.title(f'SINR Map - Band {band_id}, TX {tx_id}')
-                # plt.xlim(0, width)
-                # plt.ylim(0, height)
+                # --- SINR Plot ---
+                plt.subplot(1, 2, 1)
+                plt.imshow(sinr_image, origin='lower', cmap='viridis', vmin=self.cfg.min_sinr, vmax=self.cfg.max_sinr)
+                plt.colorbar(label='SINR (dB)')
+                plt.title(f'SINR Map - Band {band_id}, TX {tx_id}')
+                plt.xlim(0, width)
+                plt.ylim(0, height)
 
-                # # Scatter user positions
-                # plt.scatter(user_positions[:, 1], user_positions[:, 0], c='white', s=20, edgecolors='black')
-                # for y, x in user_positions:
-                #     x = float(x)
-                #     y = float(y)
-                #     plt.text(x + 0.5, y + 0.5, f'({int(x)},{int(y)})', color='white', fontsize=6)
+                # Scatter user positions
+                plt.scatter(user_positions[:, 1], user_positions[:, 0], c='white', s=20, edgecolors='black')
+                for y, x in user_positions:
+                    x = float(x)
+                    y = float(y)
+                    plt.text(x + 0.5, y + 0.5, f'({int(x)},{int(y)})', color='white', fontsize=6)
 
-                # # --- BLER Plot ---
-                # plt.subplot(1, 2, 2)
-                # plt.imshow(bler_image, origin='lower', cmap='cool', vmin=0, vmax=1)
-                # plt.colorbar(label='BLER')
-                # plt.title(f'BLER Map - Band {band_id}, TX {tx_id}')
-                # plt.xlim(0, width)
-                # plt.ylim(0, height)
+                # --- BLER Plot ---
+                plt.subplot(1, 2, 2)
+                plt.imshow(bler_image, origin='lower', cmap='cool', vmin=0, vmax=1)
+                plt.colorbar(label='BLER')
+                plt.title(f'BLER Map - Band {band_id}, TX {tx_id}')
+                plt.xlim(0, width)
+                plt.ylim(0, height)
 
-                # # Scatter user positions
-                # plt.scatter(user_positions[:, 1], user_positions[:, 0], c='white', s=20, edgecolors='black')
-                # for y, x in user_positions:
-                #     x = float(x)
-                #     y = float(y)
-                #     plt.text(x + 0.5, y + 0.5, f'({int(x)},{int(y)})', color='white', fontsize=6)
+                # Scatter user positions
+                plt.scatter(user_positions[:, 1], user_positions[:, 0], c='white', s=20, edgecolors='black')
+                for y, x in user_positions:
+                    x = float(x)
+                    y = float(y)
+                    plt.text(x + 0.5, y + 0.5, f'({int(x)},{int(y)})', color='white', fontsize=6)
 
-                # # Save and close
-                # plt.tight_layout()
-                # plt.savefig(self.cfg.images_path + f"Plot for band {band_id}, tx{tx_id}.png", dpi=400)
-                # plt.close()
+                # Save and close
+                plt.tight_layout()
+                plt.savefig(self.images_path + f"Plot for band {band_id}, tx{tx_id}.png", dpi=400)
+                plt.close()
 
                 sinr = tf.gather_nd(sinr_map[tx_id], user_positions)
                 sinrs.append(sinr)
@@ -331,7 +340,7 @@ class PrecomputedEnv(gym.Env):
                     #                     self.cfg.num_rx,
                     #                     user_rates, 
                     #                     self.sharing_max_per_rb,
-                    #                     save_path=self.cfg.images_path)
+                    #                     save_path=self.images_path)
                 elif band_id == 1: # primary
                     grid_alloc, user_rates = self.scheduler(bler, self.primary_max_per_rb, self.primary_num_slots, self.primary_number_rbs)
                     # prop_fair_plotter(self.timestep, # adds significant time constraint
@@ -340,7 +349,7 @@ class PrecomputedEnv(gym.Env):
                     #                     self.cfg.num_rx,
                     #                     user_rates, 
                     #                     self.primary_max_per_rb,
-                    #                     save_path=self.cfg.images_path)
+                    #                     save_path=self.images_path)
                 else:
                     raise Exception("Out of range")
                 rates.append(user_rates)
@@ -540,46 +549,49 @@ class PrecomputedEnv(gym.Env):
 
         """
         # Plotting the performance and motion
-        # if len(self.performance) > self.max_results_length: # managing stored results size
-        #     self.performance = self.performance[-1*self.max_results_length:]
+        if len(self.performance) > self.max_results_length: # managing stored results size
+            self.performance = self.performance[-1*self.max_results_length:]
 
         # Plotting the performance
         if self.timestep >= 1:
-            # plot_performance(step=self.timestep,
-            #                  users=self.users,
-            #                  performance=self.performance, 
-            #                  save_path=self.cfg.images_path)
+            if self.test:
+                # plot_performance(step=self.timestep,
+                #                 users=self.users,
+                #                 performance=self.performance, 
+                #                 save_path=self.images_path)
+                pass
             plot_rewards(episode=episode,
                          step=self.timestep,
                          rewards=self.rewards,
-                         save_path=self.cfg.images_path)
-            
-        # self.fig_0, self.ax_0  = plot_motion(step=self.timestep, 
-        #                                      id="Sharing Band, Max SINR", 
-        #                                      grid=self.valid_area, 
-        #                                      cm=tf.reduce_max(self.sharing_sinr_map, axis=0), 
-        #                                      color="viridis",
-        #                                      users=self.users, 
-        #                                      transmitters=self.transmitters, 
-        #                                      cell_size=self.cfg.cell_size, 
-        #                                      sinr_range=self.norm_ranges["sinr"],
-        #                                      fig=self.fig_0,
-        #                                      ax=self.ax_0, 
-        #                                      save_path=self.cfg.images_path)
+                         save_path=self.images_path)
         
-        # for id, primary_sinr_map in enumerate(self.primary_sinr_maps):
-        #     self.primary_figs[id], self.primary_axes[id] = plot_motion(step=self.timestep, 
-        #                                                                id=f"Primary Band {id}, SINR", 
-        #                                                                grid=self.valid_area, 
-        #                                                                cm=primary_sinr_map, 
-        #                                                                color="inferno",
-        #                                                                users=self.users, 
-        #                                                                transmitters=self.transmitters, 
-        #                                                                cell_size=self.cfg.cell_size, 
-        #                                                                sinr_range=self.norm_ranges["sinr"],
-        #                                                                fig=self.primary_figs[id],
-        #                                                                ax=self.primary_axes[id], 
-        #                                                                save_path=self.cfg.images_path)
+        if self.test:
+            self.fig_0, self.ax_0  = plot_motion(step=self.timestep, 
+                                                id="Sharing Band, Max SINR", 
+                                                grid=self.valid_area, 
+                                                cm=tf.reduce_max(self.sharing_sinr_map, axis=0), 
+                                                color="viridis",
+                                                users=self.users, 
+                                                transmitters=self.transmitters, 
+                                                cell_size=self.cfg.cell_size, 
+                                                sinr_range=self.norm_ranges["sinr"],
+                                                fig=self.fig_0,
+                                                ax=self.ax_0, 
+                                                save_path=self.images_path)
+            
+            # for id, primary_sinr_map in enumerate(self.primary_sinr_maps):
+            #     self.primary_figs[id], self.primary_axes[id] = plot_motion(step=self.timestep, 
+            #                                                             id=f"Primary Band {id}, SINR", 
+            #                                                             grid=self.valid_area, 
+            #                                                             cm=primary_sinr_map, 
+            #                                                             color="inferno",
+            #                                                             users=self.users, 
+            #                                                             transmitters=self.transmitters, 
+            #                                                             cell_size=self.cfg.cell_size, 
+            #                                                             sinr_range=self.norm_ranges["sinr"],
+            #                                                             fig=self.primary_figs[id],
+            #                                                             ax=self.primary_axes[id], 
+            #                                                             save_path=self.images_path)
 
 
         return
@@ -594,6 +606,9 @@ class SionnaEnv(gym.Env):
     cfg : dict
         Top level configuration dictionary.
 
+    test : bool
+        Flag indicating if in test mode. Changes what is plotted.
+
     Usage
     ------
     Call reset() to initialise episode.
@@ -601,7 +616,7 @@ class SionnaEnv(gym.Env):
     Call render() to visualise.
 
     """
-    def __init__(self, cfg):
+    def __init__(self, cfg, test=False):
         """ Initialisation of the environment. """
         self.cfg = cfg
         self.limit = cfg.step_limit
@@ -612,6 +627,11 @@ class SionnaEnv(gym.Env):
         self.sharing_bandwidth = self.cfg.sharing_fft_size * self.cfg.primary_subcarrier_spacing
         self.primaryBands = {}
         self.initial_states = {}
+        self.test = test
+        if self.test:
+            self.images_path = self.cfg.test_images_path
+        else:
+            self.images_path = self.cfg.images_path
 
         # Set up gym standard attributes
         self.truncated = False
@@ -648,7 +668,8 @@ class SionnaEnv(gym.Env):
             self.initial_states["PrimaryBand"+str(id)] = tf.cast(tf.one_hot(id, self.num_tx, dtype=tf.int16), dtype=tf.bool)
             self.primaryBands["PrimaryBand"+str(id)] = FullSimulator(cfg=self.cfg,
                                                                      prefix="primary",
-                                                                     scene_name= cfg.scene_path + "simple_OSM_scene.xml", #sionna.rt.scene.simple_street_canyon,
+                                                                    #  scene_name= cfg.scene_path + "empty_scene.xml", #cfg.scene_path + "simple_OSM_scene.xml", #sionna.rt.scene.simple_street_canyon,
+                                                                     scene_name=cfg.scene_path + "simple_OSM_scene.xml",
                                                                      carrier_frequency=tx["primary_carrier_freq"],
                                                                      pmax=self.cfg.max_power, # global maximum power
                                                                      transmitters=self.transmitters,
@@ -664,6 +685,7 @@ class SionnaEnv(gym.Env):
         # Setting up the sharing band
         self.sharingBand = FullSimulator(cfg=self.cfg,
                                          prefix="sharing",
+                                        #  scene_name=cfg.scene_path + "empty_scene.xml",#"simple_OSM_scene.xml",
                                          scene_name=cfg.scene_path + "simple_OSM_scene.xml",
                                          carrier_frequency=self.cfg.sharing_carrier_freq,
                                          pmax=self.cfg.max_power, # maximum power for initial mapping of coverage area
@@ -799,6 +821,7 @@ class SionnaEnv(gym.Env):
 
         # Running the simulation - with separated primary bands
         primaryOutputs = [primaryBand(self.users, state, self.transmitters) for primaryBand, state in zip(self.primaryBands.values(), self.initial_states.values())]
+
         sharingOutput = self.sharingBand(self.users, self.sharing_state, self.transmitters, self.timestep)
 
         # Updating SINR maps
@@ -809,6 +832,8 @@ class SionnaEnv(gym.Env):
         primaryOutput = {"bler": tf.stack([primaryOutput["bler"][i,:] for primaryOutput, i in zip(primaryOutputs, range(len(self.initial_states.values())))]), 
                          "sinr": tf.stack([primaryOutput["sinr"][i,:] for primaryOutput, i in zip(primaryOutputs, range(len(self.initial_states.values())))])}
         self.performance.append({"Primary": primaryOutput, "Sharing": sharingOutput})
+
+        print({"Primary": primaryOutput, "Sharing": sharingOutput})
 
         # Calculating rewards
         self.rates = tf.concat([
@@ -1002,41 +1027,44 @@ class SionnaEnv(gym.Env):
 
         # Plotting the performance
         if self.timestep >= 1:
-            plot_performance(step=self.timestep,
-                             users=self.users,
-                             performance=self.performance, 
-                             save_path=self.cfg.images_path)
+            if self.test:
+                # plot_performance(step=self.timestep,
+                #                 users=self.users,
+                #                 performance=self.performance, 
+                #                 save_path=self.images_path)
+                pass
             plot_rewards(episode=episode,
                          step=self.timestep,
                          rewards=self.rewards,
-                         save_path=self.cfg.images_path)
-            
-        self.fig_0, self.ax_0  = plot_motion(step=self.timestep, 
-                                             id="Sharing Band, Max SINR", 
-                                             grid=self.valid_area, 
-                                             cm=tf.reduce_max(self.sharing_sinr_map, axis=0), 
-                                             color="viridis",
-                                             users=self.users, 
-                                             transmitters=self.transmitters, 
-                                             cell_size=self.cfg.cell_size, 
-                                             sinr_range=self.norm_ranges["sinr"],
-                                             fig=self.fig_0,
-                                             ax=self.ax_0, 
-                                             save_path=self.cfg.images_path)
+                         save_path=self.images_path)
         
-        for id, primary_sinr_map in enumerate(self.primary_sinr_maps):
-            self.primary_figs[id], self.primary_axes[id] = plot_motion(step=self.timestep, 
-                                                                       id=f"Primary Band {id}, SINR", 
-                                                                       grid=self.valid_area, 
-                                                                       cm=tf.reduce_max(primary_sinr_map, axis=0), 
-                                                                       color="inferno",
-                                                                       users=self.users, 
-                                                                       transmitters=self.transmitters, 
-                                                                       cell_size=self.cfg.cell_size, 
-                                                                       sinr_range=self.norm_ranges["sinr"],
-                                                                       fig=self.primary_figs[id],
-                                                                       ax=self.primary_axes[id], 
-                                                                       save_path=self.cfg.images_path)
+        if self.test or True:
+            self.fig_0, self.ax_0 = plot_motion(step=self.timestep, 
+                                                id="Sharing Band, Max SINR", 
+                                                grid=self.valid_area, 
+                                                cm=tf.reduce_max(self.sharing_sinr_map, axis=0), 
+                                                color="viridis",
+                                                users=self.users, 
+                                                transmitters=self.transmitters, 
+                                                cell_size=self.cfg.cell_size, 
+                                                sinr_range=self.norm_ranges["sinr"],
+                                                fig=self.fig_0,
+                                                ax=self.ax_0, 
+                                                save_path=self.images_path)
+            
+            for id, primary_sinr_map in enumerate(self.primary_sinr_maps):
+                self.primary_figs[id], self.primary_axes[id] = plot_motion(step=self.timestep, 
+                                                                        id=f"Primary Band {id}, SINR", 
+                                                                        grid=self.valid_area, 
+                                                                        cm=tf.reduce_max(primary_sinr_map, axis=0), 
+                                                                        color="inferno",
+                                                                        users=self.users, 
+                                                                        transmitters=self.transmitters, 
+                                                                        cell_size=self.cfg.cell_size, 
+                                                                        sinr_range=self.norm_ranges["sinr"],
+                                                                        fig=self.primary_figs[id],
+                                                                        ax=self.primary_axes[id], 
+                                                                        save_path=self.images_path)
 
 
         return

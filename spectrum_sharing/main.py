@@ -21,6 +21,8 @@ from spectrum_sharing.DQN_agent import Agent, ReplayBuffer
 from spectrum_sharing.logger import logger
 from spectrum_sharing.plotting import plot_total_rewards
 
+CONFIG_NAME = "simulation2" # the only config selection in the script
+
 def main(cfg):
     """Run the simulator."""
     # Starting simulator
@@ -57,6 +59,7 @@ def main(cfg):
 
             if next_observation is None: 
                 logger.critical("Exiting episode prematurely after error to prevent propagation.")
+                env.render(episode=e) # remove after debugging
                 break
 
             buffer.add((observation, action_id, reward, next_observation, terminated), env.timestep) # consider adding truncated OR terminated
@@ -118,8 +121,8 @@ if __name__ == "__main__":
             tf.config.experimental.set_memory_growth(gpus[gpu_num], True) # manages memory growth
         except RuntimeError as e:
             logger.critical(e)
-    with initialize(version_base=None, config_path="Config", job_name="precomputed"):
-        config = compose(config_name="precomputed")
+    with initialize(version_base=None, config_path="Config", job_name=CONFIG_NAME):
+        config = compose(config_name=CONFIG_NAME)
         sionna.config.xla_compat=True
         # # Use for determinism:
         # sionna.config.seed=config.random_seed

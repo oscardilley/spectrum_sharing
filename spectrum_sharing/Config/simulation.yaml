@@ -1,5 +1,5 @@
 # Simulation
-use_pre_gen_maps: True # if True, pre-generated maps are used
+use_pre_gen_maps: False # if True, pre-generated maps are used
 episodes: 1000
 step_limit: 30
 random_seed: 42
@@ -8,6 +8,7 @@ random_seed: 42
 max_results_length: 10 # for plotting
 assets_path: "/home/ubuntu/spectrum_sharing_v0/spectrum_sharing/Assets/"
 images_path: "/home/ubuntu/spectrum_sharing_v0/spectrum_sharing/Simulations/"
+test_images_path: "/home/ubuntu/spectrum_sharing_v0/spectrum_sharing/Tests/"
 log_path: "/home/ubuntu/spectrum_sharing_v0/spectrum_sharing/Logging/"
 models_path: "/home/ubuntu/spectrum_sharing_v0/spectrum_sharing/Models/"
 buffer_path: "/home/ubuntu/spectrum_sharing_v0/spectrum_sharing/Buffer/"
@@ -15,15 +16,15 @@ test_models_path: "/home/ubuntu/spectrum_sharing_v0/spectrum_sharing/TestModels/
 scene_path: "/home/ubuntu/spectrum_sharing_v0/spectrum_sharing/Scene/BRISTOL_3/"
 
 # Scene and Sionna
-num_rx: 20
-max_depth: 5 # ray tracer depth
+num_rx: 10
+max_depth: 3 # ray tracer depth
 sharing_carrier_freq: 6465e6 # central carrier frequency in upper 6 GHz
 primary_subcarrier_spacing: 15e3 # 5G numerology spacing
 sharing_subcarrier_spacing: 30e3
 primary_fft_size: 660 # approximately 10MHz per primary channel
 sharing_fft_size: 3300 # approximately 100MHz sharing
-batch_size: 1000 # essentially number of Monte Carlo simulations
-cell_size: 1 # resolution of the coverage maps used for simulation
+batch_size: 100 # essentially number of Monte Carlo simulations
+cell_size: 4 # resolution of the coverage maps used for simulation
 
 # Model and training
 training_batch_size: 32 # in timesteps

@@ -7,7 +7,7 @@ Key utility functions for running simuations.
 import tensorflow as tf
 import numpy as np
 
-def update_users(grid, num_users, users, max_move=2):
+def update_users(grid, num_users, users, max_move=15):
     """
     Update the positions and directions of users on a grid.
 
@@ -90,8 +90,8 @@ def levy_step():
     v = tf.random.normal(shape=(), mean=0, stddev=1)
     step = u / tf.abs(v)**(1/2)
     # Scale to get movements between 1-5 grid spaces
-    step = 4.0 + (step * 2.0)  # Center around 3 with ±2 variation
-    return tf.clip_by_value(step, 1.0, 7.0)
+    step = 5.0 + (step * 3.0)  # Center around 3 with ±2 variation
+    return tf.clip_by_value(step, 1.0, 15.0)
 
 def find_valid_position(grid, base_pos, max_radius=None):
     """

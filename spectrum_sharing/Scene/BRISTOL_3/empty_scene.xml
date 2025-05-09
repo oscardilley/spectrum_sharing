@@ -1,0 +1,72 @@
+<?xml version="1.0" ?>
+<scene version="2.1.0">
+    <default name="spp" value="4096"/>
+    <default name="resx" value="1024"/>
+    <default name="resy" value="768"/>
+    <integrator type="path">
+        <integer name="max_depth" value="12"/>
+    </integrator>
+    <bsdf type="twosided" id="mat-itu_concrete">
+        <bsdf type="diffuse">
+            <rgb value="0.55 0.53 0.53" name="reflectance"/>
+        </bsdf>
+    </bsdf>
+    <bsdf type="twosided" id="mat-itu_marble">
+        <bsdf type="diffuse">
+            <rgb value="0.701101 0.644479 0.48515" name="reflectance"/>
+        </bsdf>
+    </bsdf>
+    <bsdf type="twosided" id="mat-itu_metal">
+        <bsdf type="diffuse">
+            <rgb value="0.219526 0.219526 0.254152" name="reflectance"/>
+        </bsdf>
+    </bsdf>
+    <bsdf type="twosided" id="mat-itu_wood">
+        <bsdf type="diffuse">
+            <rgb value="0.043 0.58 0.184" name="reflectance"/>
+        </bsdf>
+    </bsdf>
+    <bsdf type="twosided" id="mat-itu_wet_ground">
+        <bsdf type="diffuse">
+            <rgb value="0.65 0.65 0.65" name="reflectance"/>
+        </bsdf>
+    </bsdf>
+    <emitter type="constant" id="World">
+        <rgb value="1.000000 1.000000 1.000000" name="radiance"/>
+    </emitter>
+    <sensor type="perspective" id="Camera">
+        <string name="fov_axis" value="x"/>
+        <float name="fov" value="42.854885"/>
+        <float name="principal_point_offset_x" value="0.000000"/>
+        <float name="principal_point_offset_y" value="-0.000000"/>
+        <float name="near_clip" value="0.100000"/>
+        <float name="far_clip" value="10000.000000"/>
+        <transform name="to_world">
+            <rotate x="1" angle="0"/>
+            <rotate y="1" angle="0"/>
+            <rotate z="1" angle="-90"/>
+            <translate value="0 0 100"/>
+        </transform>
+        <sampler type="independent">
+            <integer name="sample_count" value="$spp"/>
+        </sampler>
+        <film type="hdrfilm">
+            <integer name="width" value="$resx"/>
+            <integer name="height" value="$resy"/>
+        </film>
+    </sensor>
+    <shape type="obj">
+        <string name="filename" value="spectrum_sharing/Scene/ground_plane.obj"/>
+        <ref id="mat-itu_wet_ground" name="bsdf"/>
+    </shape>
+    <shape type="ply" id="mesh-ground">
+        <string name="filename" value="spectrum_sharing/Scene/BRISTOL_3/mesh/ground.ply"/>
+        <ref id="mat-itu_wet_ground" name="bsdf"/>
+        <boolean name="face_normals" value="true"/>
+    </shape>
+    <shape type="ply" id="mesh-roads_44">
+        <string name="filename" value="spectrum_sharing/Scene/BRISTOL_3/mesh/road_mesh_combined.ply"/>
+        <ref id="mat-itu_concrete" name="bsdf"/>
+        <boolean name="face_normals" value="true"/>
+    </shape>
+</scene>
