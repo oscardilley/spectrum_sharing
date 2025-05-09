@@ -172,7 +172,7 @@ class FullSimulator:
         sn.add(Camera("cam1", position=[300, -320, 230], look_at=sn.center))
         sn.add(Camera("cam2", position=[sn.center.numpy()[0],sn.center.numpy()[1],600], orientation=[np.pi/2, np.pi/2,-np.pi/2]))
 
-        sn.synthetic_array=True # False = ray tracing done per antenna element
+        sn.synthetic_array = True # False = ray tracing done per antenna element
         sn.frequency = self.carrier_frequency
         sn.bandwidth = self.bandwidth
 
@@ -265,6 +265,7 @@ class FullSimulator:
             self.number_rbs = self.simulator.pusch_config.num_resource_blocks # number of resource blocks in the carrier resource grid
             self.max_data_sent_per_rb = self.max_data_rate / (self.num_slots * self.number_rbs) # bits per RB over 14 OFDM symbols
             logger.warning(f"Updated max data per RB etc.")
+            self.simulator.pusch_config.show()
 
         # Apply the state and update the coverage map to obtain new 
         self.state = state
@@ -283,21 +284,24 @@ class FullSimulator:
         # Updating the receivers
         per_rx_sinr = self.update_receivers(receivers)
         paths = self.scene.compute_paths(max_depth=self.max_depth, diffraction=True, scattering=True, los=True, reflection=True)
-        # paths.normalize_delays = False # use to set tau = 0 for first path for any tx rx pair, defaults to True
+        paths.normalize_delays = True # use to set tau = 0 for first path for any tx rx pair, defaults to True
 
-        # paths.apply_doppler(sampling_frequency=self.subcarrier_spacing,
-        #                     num_time_steps=self.num_time_steps, # Number of OFDM symbols
-        #                     #tx_velocities=[self.cell_size * tf.convert_to_tensor(transmitter["direction"], dtype=tf.int64) for transmitter in self.transmitters.values()], # [batch_size, num_tx, 3] shape
-        #                     rx_velocities=[self.cell_size * receiver["direction"] for receiver in receivers.values()]) # [batch_size, num_rx, 3] shape # do I need to reverse the receiver direction
+
+
+        # FIX AND CLEAN UP DOPPLER PLUS MCS CHANGES
+
+
+        paths.apply_doppler(sampling_frequency=self.subcarrier_spacing,
+                            num_time_steps=self.num_time_steps, # Number of OFDM symbols
+                            #tx_velocities=[self.cell_size * tf.convert_to_tensor(transmitter["direction"], dtype=tf.int64) for transmitter in self.transmitters.values()], # [batch_size, num_tx, 3] shape
+                            # rx_velocities=[self.cell_size * receiver["direction"] for receiver in receivers.values()]) # [batch_size, num_rx, 3] shape # do I need to reverse the receiver direction
+                            rx_velocities=[[0,0,0] for receiver in receivers.values()])
        
-        a, tau = paths.cir(los=True) # generating the channel impulse response
+        a, tau = paths.cir(los=True, reflection=True, diffraction=True, scattering=True) # generating the channel impulse response
 
         # Plotting the scene with paths and coverage
         self.scene.render_to_file(camera="cam1", filename=self.cfg.images_path + f"cam1_{self.prefix}_scene.png", paths = paths, coverage_map=self.cm, cm_metric="sinr", resolution=[1310, 1000], fov=55) 
         self.scene.render_to_file(camera="cam2", filename=self.cfg.images_path+ f"cam2_{self.prefix}_scene.png", paths = paths, coverage_map=self.cm, cm_metric="sinr", resolution=[1310, 1000], fov = 55) 
-    
-        # print(a.shape) # [batch_size, num_rx, num_rx_ant, num_tx, num_tx_ant, max_num_paths, num_time_steps]
-        # print(tau.shape) # [batch_size, num_rx, num_rx_ant, num_tx, num_tx_ant, max_num_paths]
 
         num_active_tx = int(tf.reduce_sum(tf.cast(self.state, tf.int32)))
         self.simulator.update_channel(num_active_tx, a, tau)

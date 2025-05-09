@@ -16,7 +16,7 @@ test_models_path: "/home/ubuntu/spectrum_sharing_v0/spectrum_sharing/TestModels/
 scene_path: "/home/ubuntu/spectrum_sharing_v0/spectrum_sharing/Scene/BRISTOL_3/"
 
 # Scene and Sionna
-num_rx: 3
+num_rx: 6
 max_depth: 10 # ray tracer depth
 sharing_carrier_freq: 7425e6
 primary_subcarrier_spacing: 15e3 # WiFi 6 subcarrier spacing would be 78.125, may need to change resource grid to properly change
