@@ -47,7 +47,7 @@ def prop_fair_plotter(timestep, tx, grid_alloc, num_users, user_rates, max_data_
     # Top-Left: Resource Allocation Grid
     # ---------------------------
     ax1 = fig.add_subplot(gs[0, 0])
-    cax = ax1.imshow(grid_alloc.T, aspect='auto', cmap=cmap, origin='lower')
+    cax = ax1.imshow(grid_alloc.T, aspect='auto', cmap=cmap, origin='lower', vmin=0, vmax=num_users - 1)
     cbar = fig.colorbar(cax, ax=ax1, ticks=range(num_users))
     cbar.ax.set_yticklabels([f"User {i}" for i in range(num_users)])
     ax1.set_xlabel('Time Slot Index', fontsize=12)

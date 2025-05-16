@@ -362,6 +362,7 @@ class PrecomputedEnv(gym.Env):
                 raise Exception("Out of range")
             
         self.performance.append({"Primary": primaryOutput, "Sharing": sharingOutput})
+        # print({"Primary": primaryOutput, "Sharing": sharingOutput})
 
         # Calculating rewards
         self.rates = tf.concat([
@@ -546,7 +547,6 @@ class PrecomputedEnv(gym.Env):
         ----------
         episode : int
             Episode reference number for file naming.
-
         """
         # Plotting the performance and motion
         if len(self.performance) > self.max_results_length: # managing stored results size
@@ -579,19 +579,19 @@ class PrecomputedEnv(gym.Env):
                                                 ax=self.ax_0, 
                                                 save_path=self.images_path)
             
-            # for id, primary_sinr_map in enumerate(self.primary_sinr_maps):
-            #     self.primary_figs[id], self.primary_axes[id] = plot_motion(step=self.timestep, 
-            #                                                             id=f"Primary Band {id}, SINR", 
-            #                                                             grid=self.valid_area, 
-            #                                                             cm=primary_sinr_map, 
-            #                                                             color="inferno",
-            #                                                             users=self.users, 
-            #                                                             transmitters=self.transmitters, 
-            #                                                             cell_size=self.cfg.cell_size, 
-            #                                                             sinr_range=self.norm_ranges["sinr"],
-            #                                                             fig=self.primary_figs[id],
-            #                                                             ax=self.primary_axes[id], 
-            #                                                             save_path=self.images_path)
+            for id, primary_sinr_map in enumerate(self.primary_sinr_maps):
+                self.primary_figs[id], self.primary_axes[id] = plot_motion(step=self.timestep, 
+                                                                        id=f"Primary Band {id}, SINR", 
+                                                                        grid=self.valid_area, 
+                                                                        cm=primary_sinr_map, 
+                                                                        color="inferno",
+                                                                        users=self.users, 
+                                                                        transmitters=self.transmitters, 
+                                                                        cell_size=self.cfg.cell_size, 
+                                                                        sinr_range=self.norm_ranges["sinr"],
+                                                                        fig=self.primary_figs[id],
+                                                                        ax=self.primary_axes[id], 
+                                                                        save_path=self.images_path)
 
 
         return
@@ -830,10 +830,11 @@ class SionnaEnv(gym.Env):
 
         # Combining the primary bands for the different transmitters:
         primaryOutput = {"bler": tf.stack([primaryOutput["bler"][i,:] for primaryOutput, i in zip(primaryOutputs, range(len(self.initial_states.values())))]), 
-                         "sinr": tf.stack([primaryOutput["sinr"][i,:] for primaryOutput, i in zip(primaryOutputs, range(len(self.initial_states.values())))])}
+                         "sinr": tf.stack([primaryOutput["sinr"][i,:] for primaryOutput, i in zip(primaryOutputs, range(len(self.initial_states.values())))]),
+                         "rate": tf.stack([primaryOutput["rate"][i,:] for primaryOutput, i in zip(primaryOutputs, range(len(self.initial_states.values())))])}
         self.performance.append({"Primary": primaryOutput, "Sharing": sharingOutput})
 
-        print({"Primary": primaryOutput, "Sharing": sharingOutput})
+        # print({"Primary": primaryOutput, "Sharing": sharingOutput})
 
         # Calculating rewards
         self.rates = tf.concat([
@@ -1028,17 +1029,17 @@ class SionnaEnv(gym.Env):
         # Plotting the performance
         if self.timestep >= 1:
             if self.test:
-                # plot_performance(step=self.timestep,
-                #                 users=self.users,
-                #                 performance=self.performance, 
-                #                 save_path=self.images_path)
+                plot_performance(step=self.timestep,
+                                users=self.users,
+                                performance=self.performance, 
+                                save_path=self.images_path)
                 pass
             plot_rewards(episode=episode,
                          step=self.timestep,
                          rewards=self.rewards,
                          save_path=self.images_path)
         
-        if self.test or True:
+        if self.test:
             self.fig_0, self.ax_0 = plot_motion(step=self.timestep, 
                                                 id="Sharing Band, Max SINR", 
                                                 grid=self.valid_area, 

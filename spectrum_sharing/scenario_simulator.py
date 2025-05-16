@@ -222,14 +222,23 @@ class FullSimulator:
             return self.cm, tf.zeros(shape=(self.num_tx, self.cm.num_cells_y, self.cm.num_cells_x), dtype=tf.float32)
 
         # Generating a coverage map for max power to establish valid UE regions
-        cm = self.scene.coverage_map(max_depth=self.max_depth,           # Maximum number of ray scene interactions
-                                diffraction=True,
-                                scattering=True, 
-                                cm_cell_size=(self.cell_size, self.cell_size),   # Resolution of the coverage map, smaller is better
-                                )
+        try:
+            cm = self.scene.coverage_map(max_depth=self.max_depth,           # Maximum number of ray scene interactions
+                                    diffraction=True,
+                                    scattering=True, 
+                                    los=True,
+                                    reflection=True,
+                                    ris=True,
+                                    cm_cell_size=(self.cell_size, self.cell_size),   # Resolution of the coverage map, smaller is better
+                                    # num_runs=4, # repeating and average coverage map to improve accuracy without increasing mem footprint
+                                    )
+            return cm, cm.sinr # [num_tx, num_cells_y, num_cells_x], tf.float
         
+        except Exception as e:
+            logger.warning(f"RIS: {self.scene.ris}") # for debugging as seem to be getting a random RIS error
+            logger.critical(f"Coverage map generation failed: {e}", exc_info=True)
+            raise e
         
-        return cm, cm.sinr # [num_tx, num_cells_y, num_cells_x], tf.float
     
     def _validity_matrix(self, x_max, y_max, valid_area):
         """ Calculating the valid user area"""
@@ -249,11 +258,10 @@ class FullSimulator:
         blers = [] # used to estimate throughput
         sinrs = []
         rates = []
+        bers = []
         count = 0
         # Updating transmitters
         self.transmitters = transmitters
-
-        # mcs = (1, 2)
 
         if mcs:
             logger.warning(f"Changing to MCS: {mcs}")
@@ -283,13 +291,8 @@ class FullSimulator:
 
         # Updating the receivers
         per_rx_sinr = self.update_receivers(receivers)
-        paths = self.scene.compute_paths(max_depth=self.max_depth, diffraction=True, scattering=True, los=True, reflection=True)
+        paths = self.scene.compute_paths(max_depth=self.max_depth, diffraction=True, scattering=True, los=True, reflection=True, ris=True)
         paths.normalize_delays = True # use to set tau = 0 for first path for any tx rx pair, defaults to True
-
-
-
-        # FIX AND CLEAN UP DOPPLER PLUS MCS CHANGES
-
 
         paths.apply_doppler(sampling_frequency=self.subcarrier_spacing,
                             num_time_steps=self.num_time_steps, # Number of OFDM symbols
@@ -297,11 +300,11 @@ class FullSimulator:
                             # rx_velocities=[self.cell_size * receiver["direction"] for receiver in receivers.values()]) # [batch_size, num_rx, 3] shape # do I need to reverse the receiver direction
                             rx_velocities=[[0,0,0] for receiver in receivers.values()])
        
-        a, tau = paths.cir(los=True, reflection=True, diffraction=True, scattering=True) # generating the channel impulse response
+        a, tau = paths.cir(los=True, reflection=True, diffraction=True, scattering=True, ris=True) # generating the channel impulse response
 
         # Plotting the scene with paths and coverage
-        self.scene.render_to_file(camera="cam1", filename=self.cfg.images_path + f"cam1_{self.prefix}_scene.png", paths = paths, coverage_map=self.cm, cm_metric="sinr", resolution=[1310, 1000], fov=55) 
-        self.scene.render_to_file(camera="cam2", filename=self.cfg.images_path+ f"cam2_{self.prefix}_scene.png", paths = paths, coverage_map=self.cm, cm_metric="sinr", resolution=[1310, 1000], fov = 55) 
+        # self.scene.render_to_file(camera="cam1", filename=self.cfg.images_path + f"cam1_{self.prefix}_scene.png", paths = paths, coverage_map=self.cm, cm_metric="sinr", resolution=[1310, 1000], fov=55) 
+        # self.scene.render_to_file(camera="cam2", filename=self.cfg.images_path+ f"cam2_{self.prefix}_scene.png", paths = paths, coverage_map=self.cm, cm_metric="sinr", resolution=[1310, 1000], fov = 55) 
 
         num_active_tx = int(tf.reduce_sum(tf.cast(self.state, tf.int32)))
         self.simulator.update_channel(num_active_tx, a, tau)
@@ -309,7 +312,7 @@ class FullSimulator:
 
         # Bit level simulation
         start = perf_counter()
-        bler, sinr = self.simulator(batch_size=self.batch_size)
+        bler, sinr, ber = self.simulator(batch_size=self.batch_size)
         end = perf_counter()
         total = round(end - start, 3)
         logger.info(f"Time taken for bit level simulation: {total}")
@@ -318,10 +321,12 @@ class FullSimulator:
         for state in self.state:
             if bool(state) is True:
                 blers.append(bler[count])
+                bers.append(ber[count])
                 sinrs.append(tf.clip_by_value(sinr[count], self.cfg.min_sinr, self.cfg.max_sinr))
                 count += 1
             else:
                 blers.append(tf.ones(self.num_rx, dtype=tf.float64))
+                bers.append(tf.ones(self.num_rx, dtype=tf.float64))
                 sinrs.append(tf.constant(self.cfg.min_sinr, shape=(self.num_rx), dtype=tf.float32)) # SINR in dB so need to force close to -inf
 
 
@@ -350,21 +355,22 @@ class FullSimulator:
                 )
 
                 if (timestep is not None) and (self.prefix == "sharing") and self.state[tx]:
-                    if timestep < 10:
-                        # don't plot if not active and only plot for first timesteps
-                        prop_fair_plotter(timestep, 
-                                        tx,
-                                        grid_alloc, 
-                                        self.num_rx,
-                                        rate, 
-                                        self.max_data_sent_per_rb,
-                                        save_path=self.cfg.images_path)
+                    # if timestep < 5:
+                    #     # don't plot if not active and only plot for first timesteps
+                    #     prop_fair_plotter(timestep, 
+                    #                     tx,
+                    #                     grid_alloc, 
+                    #                     self.num_rx,
+                    #                     rate, 
+                    #                     self.max_data_sent_per_rb,
+                    #                     save_path=self.cfg.images_path)
+                    pass
                 rates.append(tf.convert_to_tensor(rate))
             end = perf_counter()
             total = round(end-start, 3)
             logger.info(f"Scheduling took {total}s")
 
-        results = {"bler": tf.stack(blers), "sinr": tf.stack(sinrs), "rate": tf.stack(rates)}                               
+        results = {"bler": tf.stack(blers), "sinr": tf.stack(sinrs), "rate": tf.stack(rates), "ber": tf.stack(bers)}                               
 
         return results
 

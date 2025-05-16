@@ -110,9 +110,7 @@ class ChannelSimulator(tf.keras.Model):
         h = tf.repeat(h, repeats=self.x.shape[0], axis=0)
         y = self.channel([self.x, h, noise])
         b_hat = self.pusch_receiver([y, h, noise]) # for perfect channel estimation
-        # b_hat = self.pusch_receiver([y, noise])
-
-        # CHECK HOW NON PERFECT ESTIMATION PERFORMS
+        # b_hat = self.pusch_receiver([y, noise]) # swap to thisand change receiver for imperfect estimation
 
         return compute_bler(self.b, b_hat), compute_ber(self.b, b_hat)
 
@@ -134,7 +132,7 @@ class ChannelSimulator(tf.keras.Model):
         noise = tf.reshape(self.sinr_no, ([-1])) # flatten
         bler_per_link, ber_per_link = tf.map_fn(self.iterate, elems=(h_freq_links, noise), fn_output_signature=(tf.float64, tf.float64)) # repeated for each link
 
-        return tf.reshape(bler_per_link, (self.num_tx, self.num_rx)), tf.reshape(self.sinr, (self.num_tx, self.num_rx))
+        return tf.reshape(bler_per_link, (self.num_tx, self.num_rx)), tf.reshape(self.sinr, (self.num_tx, self.num_rx)), tf.reshape(ber_per_link, (self.num_tx, self.num_rx))
 
 
 # class ChannelSimulator(tf.keras.Model):

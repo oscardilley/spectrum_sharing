@@ -3,6 +3,7 @@ use_pre_gen_maps: False # if True, pre-generated maps are used
 episodes: 1000
 step_limit: 50
 random_seed: 56
+num_slices: 200 # how to split up the CMAP to avoid OOM issues
 
 # General
 max_results_length: 10 # for plotting
@@ -87,3 +88,95 @@ transmitters:
     #     look_at: [0, 0, 0]
     #     mu_pa: 0.2
     #     primary_carrier_freq: 5000e6
+
+# Transmitters used to provide complete coverage to generate the grid
+grid_transmitters:
+    tx0:
+        name: "tx0"
+        position: [31, -106, 12] # [x,y,z] In the global scene coordinate system not the coverage map and utils system
+        direction: [0, 0, 0]
+        orientation: [0, 0, 0]
+        color: [1, 0, 0]
+        primary_power: 17.0
+        sharing_power: 19.0
+        min_power: 15.0
+        max_power: 23.0
+        state: 0
+        look_at: [10, -50, 10]
+        mu_pa: 0.4
+        primary_carrier_freq: 3425e6
+
+    tx1:
+        name: "tx1"
+        position: [-73, 126, 17]
+        direction: [0, 0, 0]
+        orientation: [0, 0, 0]
+        color: [1, 0, 0]
+        primary_power: 25.0
+        sharing_power: 25.0
+        min_power: 20.0
+        max_power: 30.0
+        state: 0
+        look_at: [-50, 115, 10]
+        mu_pa: 0.5
+        primary_carrier_freq: 3425e6
+
+    tx2:
+        name: "tx2"
+        position: [110, 202, 30]
+        direction: [0, 0, 0]
+        orientation: [0, 0, 0]
+        color: [1, 0, 0]
+        primary_power: 25.0
+        sharing_power: 25.0
+        min_power: 20.0
+        max_power: 30.0
+        state: 0
+        look_at: [0, 0, 0]
+        mu_pa: 0.5
+        primary_carrier_freq: 3425e6
+
+    tx3:
+        name: "tx3"
+        position: [110, -183, 30]
+        direction: [0, 0, 0]
+        orientation: [0, 0, 0]
+        color: [1, 0, 0]
+        primary_power: 25.0
+        sharing_power: 25.0
+        min_power: 20.0
+        max_power: 30.0
+        state: 0
+        look_at: [0, 0, 0]
+        mu_pa: 0.5
+        primary_carrier_freq: 3425e6
+
+    tx4:
+        name: "tx4"
+        position: [-20, -20, 30]
+        direction: [0, 0, 0]
+        orientation: [0, 0, 0]
+        color: [1, 0, 0]
+        primary_power: 25.0
+        sharing_power: 25.0
+        min_power: 20.0
+        max_power: 30.0
+        state: 0
+        look_at: [0, 0, 0]
+        mu_pa: 0.5
+        primary_carrier_freq: 3425e6
+
+    tx5:
+        name: "tx5"
+        position: [-120, -120, 30]
+        direction: [0, 0, 0]
+        orientation: [0, 0, 0]
+        color: [1, 0, 0]
+        primary_power: 25.0
+        sharing_power: 25.0
+        min_power: 20.0
+        max_power: 30.0
+        state: 0
+        look_at: [0, 0, 0]
+        mu_pa: 0.5
+        primary_carrier_freq: 3425e6
