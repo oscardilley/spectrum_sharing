@@ -13,6 +13,9 @@ from time import perf_counter
 from hydra import compose, initialize 
 import numpy as np
 import os
+import pandas as pd
+from datetime import datetime
+import pathlib
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2' # INFO and WARNING not displayed
 import matplotlib.pyplot as plt
 
@@ -104,6 +107,23 @@ def main(cfg):
                            pe=avg_pe_per_episode,
                            su=avg_su_per_episode,
                            save_path=cfg.images_path)
+        
+        # Save the results 
+        results = {
+            "avg_throughput": avg_throughput_per_episode[:e+1],
+            "avg_fairness": avg_fairness_per_episode[:e+1],
+            "avg_se": avg_se_per_episode[:e+1],
+            "avg_pe": avg_pe_per_episode[:e+1],
+            "avg_su": avg_su_per_episode[:e+1],
+        }
+        df = pd.DataFrame(results)
+        df.index.name = "episode"
+        pathlib.Path(cfg.results_path).mkdir(parents=True, exist_ok=True)
+        if e == 0:
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            result_file_path = os.path.join(cfg.results_path, f"results_{timestamp}.csv")
+        df.to_csv(result_file_path)
+
         continue
 
     logger.critical(f"Completed {e} episodes. Exiting.")

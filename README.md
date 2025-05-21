@@ -102,41 +102,108 @@ Sharing maps:
 
 ## Known Limitations
 
+In Sionna 0.19.2/ solver_cm.py. Remove below as to patch intermittent error:  "CRITICAL - Coverage map generation failed: Attempt to convert a value (None) with an unsupported type (class 'NoneType') to a Tensor." linked to RIS. Note: only appropriate if not using RIS. Lines 2854->
+
+'''python
+            if tf.shape(ris_reflect_ind)[0] > 0:
+                # ris_e_field : [num_ris_reflected_samples, num_tx_patterns, 2]
+                # ris_field_es : [num_ris_reflected_samples, 3]
+                # ris_field_ep : [num_ris_reflected_samples, 3]
+                # ris_int_point : [num_ris_reflected_samples, 3]
+                # ris_k_r : [num_ris_reflected_samples, 3]
+                # ris_n : [num_ris_reflected_samples, 3]
+                # ris_radii_curv : [num_ris_reflected_samples, 2]
+                # ris_dirs_curv : [num_ris_reflected_samples, 2, 3]
+                # ris_ang_opening : [num_ris_reflected_samples]
+                ris_e_field, ris_field_es, ris_field_ep, ris_int_point,\
+                 ris_k_r, ris_n, ris_radii_curv, ris_dirs_curv,\
+                 ris_ang_opening = self._apply_ris_reflection(ris_reflect_ind,
+                        int_point, previous_int_point, primitives, e_field,
+                        field_es, field_ep, radii_curv, dirs_curv,
+                        angular_opening)
+                updated_e_field = tf.concat([updated_e_field, ris_e_field],
+                                            axis=0)
+                updated_field_es = tf.concat([updated_field_es, ris_field_es],
+                                                axis=0)
+                updated_field_ep = tf.concat([updated_field_ep, ris_field_ep],
+                                                axis=0)
+                updated_int_point = tf.concat([updated_int_point,
+                                                ris_int_point], axis=0)
+                updated_k_r = tf.concat([updated_k_r, ris_k_r], axis=0)
+                normals = tf.concat([normals, ris_n], axis=0)
+                updated_radii_curv = tf.concat([updated_radii_curv,
+                                                ris_radii_curv], axis=0)
+                updated_dirs_curv = tf.concat([updated_dirs_curv,
+                                            ris_dirs_curv], axis=0)
+                updated_ang_opening = tf.concat([updated_ang_opening,
+                                                ris_ang_opening], axis=0)
+'''
+
 ## Repo Structure
 
 ![repo structure](https://github.com/user-attachments/assets/30b186e2-be65-478c-8b2e-af67808b4118)
 
 ```bash
-├── LICENSE
-├── README.md
 ├── logging
 │   └── app.log
+├── spectrum_sharing
+│   ├── Archive
+│   ├── Assets
+│   │   ├── Maps
+│   │   ├── grid.npy
+│   │   ├── primary_maps.npy
+│   │   └── sharing_maps.npy
+│   ├── Buffer
+│   │   └── buffer.pickle
+│   ├── Config
+│   │   ├── preprocessing.yaml
+│   │   └── simulation.yaml
+│   ├── Models
+│   │   ├── model
+│   │   └── model_target
+│   ├── Results
+│   │   └── results_20250519_103931.csv
+│   ├── Scene
+│   │   ├── BRISTOL_3
+│   │   │   ├── mesh
+│   │   │   └── simple_OSM_scene.xml
+│   │   ├── OSM_to_Sionna (4).ipynb
+│   │   └── ground_plane.obj
+│   ├── Simulations
+│   │   ├── Plot for band 1, tx0.png
+│   │   ├── Plot for band 1, tx1.png
+│   │   ├── Rewards_Ep_0.png
+│   │   ├── Rewards_Tracker.png
+│   │   ├── Scheduler_TX_0_Time_0.png
+│   │   ├── Scheduler_TX_1_Time_0.png
+│   │   ├── cam1_primary_scene.png
+│   │   ├── cam1_sharing_scene.png
+│   │   ├── cam2_primary_scene.png
+│   │   └── cam2_sharing_scene.png
+│   ├── TestModels
+│   │   ├── model
+│   │   └── model_target
+│   ├── Tests
+│   ├── Videos
+│   ├── DQN_agent.py
+│   ├── RL_simulator.py
+│   ├── __init__.py
+│   ├── __main__.py
+│   ├── benchmark.py
+│   ├── benchmarks.sh
+│   ├── channel_simulator.py
+│   ├── image_to_video.py
+│   ├── logger.py
+│   ├── main.py
+│   ├── plotting.py
+│   ├── preprocessing.py
+│   ├── scenario_simulator.py
+│   ├── utils.py
+│   └── validate_preprocess.py
+├── LICENSE
+├── README.md
 ├── requirements.txt
-├── setup.py
-└── spectrum_sharing
-    ├── Archive
-    ├── Assets
-    ├── Buffer
-    │   └── buffer.pickle
-    ├── DQN_agent.py
-    ├── Models
-    ├── RL_simulator.py
-    ├── Scene
-    ├── Simulations
-    ├── TestModels
-    ├── __init__.py
-    ├── __main__.py
-    ├── benchmark.py
-    ├── benchmarks.sh
-    ├── channel_simulator.py
-    ├── Config
-    │   └── simulation.yaml
-    ├── image_to_video.py
-    ├── logger.py
-    ├── main.py
-    ├── plotting.py
-    ├── scenario_simulator.py
-    └── utils.py
+└── setup.py
 ```
 You could benefit from this repo as follows:
 - Implement a new RL algorithm by replacing _DQN_agent.py_ in _main.py_ with another agent for the same observation and action space.

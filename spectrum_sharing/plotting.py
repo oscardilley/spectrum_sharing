@@ -199,7 +199,7 @@ def plot_total_rewards(episode, reward, throughput, fairness, se, pe, su, save_p
     ax2.plot(x, su[:episode+1], linewidth=2, linestyle="solid", 
              color=cmap(3), alpha=0.8, label="Spectral Utility")
     ax2.set_xlabel("Episode", fontsize=12, color="black")
-    ax2.set_ylabel("Spectral Metrics", fontsize=12, color="black")
+    ax2.set_ylabel("Spectral Metrics [b/s/Hz]", fontsize=12, color="black")
     ax2.set_title("Spectral Efficiency & Utility", fontsize=16, color="black")
     ax2.tick_params(axis='both', colors="black")
     for spine in ax2.spines.values():

@@ -14,6 +14,7 @@ models_path: "/home/ubuntu/spectrum_sharing_v0/spectrum_sharing/Models/"
 buffer_path: "/home/ubuntu/spectrum_sharing_v0/spectrum_sharing/Buffer/"
 test_models_path: "/home/ubuntu/spectrum_sharing_v0/spectrum_sharing/TestModels/"
 scene_path: "/home/ubuntu/spectrum_sharing_v0/spectrum_sharing/Scene/BRISTOL_3/"
+results_path: "/home/ubuntu/spectrum_sharing_v0/spectrum_sharing/Results/"""
 
 # Scene and Sionna
 num_rx: 10
