@@ -2,28 +2,43 @@
 
 Logger definition. """
 
+
 import logging
 import colorlog
 import os
+import sys
+import os.path as path
 
-logger = logging.getLogger(__name__) # __name__ makes logger specific to each module
-logger.setLevel(logging.INFO)  # Set the overall logging level for the logger
-logger.propagate = False  # Prevent the log messages from propagating to the root logger        
+# Get the main script name (the one run directly)
+def get_main_script_name():
+    main_path = sys.argv[0]
+    if main_path:
+        return os.path.splitext(os.path.basename(main_path))[0]
+    return "app"
+
+main_script_name = get_main_script_name()
+
+logger = logging.getLogger(main_script_name)
+logger.setLevel(logging.INFO)
+logger.propagate = False
 
 if not logger.handlers:
-    # Add file handler
-    log_dir = str(os.getcwd()) + "/logging"
+    # Create logging directory if it doesn't exist
+    log_dir = os.path.join(os.getcwd(), "logging")
     os.makedirs(log_dir, exist_ok=True)
-    file_handler = logging.FileHandler(f"{log_dir}/app.log", encoding="utf-8", mode="a")
+    log_file = os.path.join(log_dir, f"{main_script_name}.log")
+
+    # File handler
+    file_handler = logging.FileHandler(log_file, encoding="utf-8", mode="a")
     file_handler.setLevel(logging.INFO)
     file_formatter = logging.Formatter(
-        fmt="{asctime} - {levelname} - {message}",
+        fmt="{asctime} - {levelname} - {name} - {message}",
         style="{",
         datefmt="%Y-%m-%d %H:%M"
     )
     file_handler.setFormatter(file_formatter)
 
-    # Add stream handler with color
+    # Stream handler with color
     stream_handler = logging.StreamHandler()
     stream_handler.setLevel(logging.INFO)
     color_formatter = colorlog.ColoredFormatter(
@@ -40,6 +55,5 @@ if not logger.handlers:
     )
     stream_handler.setFormatter(color_formatter)
 
-    # Add handlers to the logger
     logger.addHandler(file_handler)
     logger.addHandler(stream_handler)

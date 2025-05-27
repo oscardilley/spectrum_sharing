@@ -3,7 +3,7 @@ use_pre_gen_maps: False # if True, pre-generated maps are used
 episodes: 1000
 step_limit: 50
 random_seed: 56
-num_slices: 1000 # how to split up the CMAP to avoid OOM issues
+num_slices: 100 # how to split up the CMAP to avoid OOM issues
 
 # General
 max_results_length: 10 # for plotting
@@ -25,8 +25,8 @@ primary_subcarrier_spacing: 15e3 # WiFi 6 subcarrier spacing would be 78.125, ma
 sharing_subcarrier_spacing: 30e3 # Changing this will change the number of slots per frame
 primary_fft_size: 120 # needs to be a power of 12RBs - will be rounded to power of 2 fft internally
 sharing_fft_size: 324
-batch_size: 1000 # also corresponds to time between episodes when subcarrier_spacing is considered. 1000 and 10000 comparably good.
-cell_size: 4
+batch_size: 10 # also corresponds to time between episodes when subcarrier_spacing is considered. 1000 and 10000 comparably good.
+cell_size: 8
 
 # Model and training
 training_batch_size: 32 # in timesteps

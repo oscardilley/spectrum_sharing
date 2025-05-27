@@ -82,40 +82,41 @@ def main(cfg):
             # Slicing up user groups to avoid exceeding memory
             num_tx = len(transmitters)
             users_list = list(users.items())
-            batch_size = len(users_list) // cfg.num_slices
-
-            slices = [users_list[i * batch_size: (i + 1) * batch_size] for i in range(cfg.num_slices - 1)]
-            slices.append(users_list[(cfg.num_slices - 1) * batch_size:])  # Last slice with remaining users
+            slices = chunk_list(users_list, cfg.num_slices)
 
         if not os.path.exists(cfg.assets_path + primary_maps_filename):
             logger.info("Processing primary maps.")
 
             for slice_id, slice in enumerate(slices): 
+
                 start = perf_counter()
                 if len(slice) == 0:
                     break
+
                 # print_gpu_memory_stats()
                 if len(slice) != primaryBand.num_rx: # avoiding reinstantiating to hopefully maintain the jit compilation
+                    logger.warning("Clearing and deferring primaryBand recreation due to num_rx mismatch.")
                     tf.keras.backend.clear_session()
                     if hasattr(primaryBand, 'simulator') and hasattr(primaryBand.simulator, 'h_freq'):
                         primaryBand.simulator.h_freq = None
                     del primaryBand
                     gc.collect()
+                    logger.warning(f"Reinitializing primaryBand for slice {slice_id} with num_rx = {len(slice)}")
                     primaryBand = FullSimulator(cfg=cfg,
                                                 prefix="primary",
-                                                scene_name= cfg.scene_path + "simple_OSM_scene.xml", #sionna.rt.scene.simple_street_canyon,
+                                                scene_name=cfg.scene_path + "simple_OSM_scene.xml",
                                                 carrier_frequency=tx["primary_carrier_freq"],
-                                                pmax=100, # maximum power
-                                                transmitters=transmitters, 
-                                                num_rx = len(slice),
-                                                max_depth= cfg.max_depth,
-                                                cell_size= cfg.cell_size,
-                                                initial_state = initial_state,
-                                                subcarrier_spacing = cfg.primary_subcarrier_spacing,
-                                                fft_size = cfg.primary_fft_size,
-                                                batch_size=cfg.batch_size,
-                                                )
+                                                pmax=100,
+                                                transmitters=transmitters,
+                                                num_rx=len(slice),
+                                                max_depth=cfg.max_depth,
+                                                cell_size=cfg.cell_size,
+                                                initial_state=initial_state,
+                                                subcarrier_spacing=cfg.primary_subcarrier_spacing,
+                                                fft_size=cfg.primary_fft_size,
+                                                batch_size=cfg.batch_size)
                     primaryBand.grid = grid # giving it the primary grid for consistency - unsure if necessary
+                    
                 primaryBand.receivers = None # clearing the previous receivers forces an update
 
                 users_slice = dict(slice)
@@ -131,11 +132,11 @@ def main(cfg):
 
                 del output
                 
-                if slice_id % 10 == 0:
+                if (slice_id % 5 == 0) or (slice_id == len(slices) - 1):
                     logger.info("Plotting.")
                     plot_coverage_map(sinrs[id,:,:], cfg.assets_path + "Maps/", title=f"SINRs map for Transmitter {id}", cmap="viridis")
-                    plot_coverage_map(blers[id,:,:], cfg.assets_path + "Maps/", title=f"BLERs map for Transmitter {id}", plot_min=0, plot_max=1, cmap="inferno")
-                    plot_coverage_map(bers[id,:,:], cfg.assets_path + "Maps/", title=f"BERs map for Transmitter {id}", plot_min=0, plot_max=1, cmap="inferno")
+                    plot_coverage_map(blers[id,:,:], cfg.assets_path + "Maps/", title=f"BLERs map for Transmitter {id}", plot_min=0, plot_max=1, cmap="inferno_r")
+                    plot_coverage_map(bers[id,:,:], cfg.assets_path + "Maps/", title=f"BERs map for Transmitter {id}", plot_min=0, plot_max=1, cmap="inferno_r")
 
                 end = perf_counter()
                 time = end - start
@@ -144,9 +145,6 @@ def main(cfg):
             tf.keras.backend.clear_session()
             if hasattr(primaryBand, 'simulator') and hasattr(primaryBand.simulator, 'h_freq'):
                 primaryBand.simulator.h_freq = None
-            del sinrs
-            del blers
-            del bers
             del primaryBand
             tf.keras.backend.clear_session()
             gc.collect()
@@ -285,6 +283,11 @@ def print_gpu_memory_stats():
     result = subprocess.check_output(['nvidia-smi', '--query-gpu=memory.used,memory.free', '--format=csv,nounits,noheader'])
     memory_used, memory_free = map(int, result.decode('utf-8').strip().split(','))
     logger.info(f"GPU Memory: {memory_used}MB used, {memory_free}MB free")
+
+def chunk_list(lst, num_chunks):
+    """ Break down a list into smaller chunks of equal size handling remainders carefully."""
+    k, m = divmod(len(lst), num_chunks)
+    return [lst[i * k + min(i, m):(i + 1) * k + min(i + 1, m)] for i in range(num_chunks)]
 
 
 def generate_users(grid, users):

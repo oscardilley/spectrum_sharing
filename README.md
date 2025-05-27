@@ -104,6 +104,30 @@ Sharing maps:
 
 In Sionna 0.19.2/ solver_cm.py. Remove below as to patch intermittent error:  "CRITICAL - Coverage map generation failed: Attempt to convert a value (None) with an unsupported type (class 'NoneType') to a Tensor." linked to RIS. Note: only appropriate if not using RIS. Lines 2854->
 
+'''bash
+  File "/home/ubuntu/spectrum_sharing_v0/spectrum_sharing/scenario_simulator.py", line 280, in __call__
+    self.cm, self.sinr = self._coverage_map() 
+  File "/home/ubuntu/spectrum_sharing_v0/spectrum_sharing/scenario_simulator.py", line 240, in _coverage_map
+    raise e
+  File "/home/ubuntu/spectrum_sharing_v0/spectrum_sharing/scenario_simulator.py", line 226, in _coverage_map
+    cm = self.scene.coverage_map(max_depth=self.max_depth,           # Maximum number of ray scene interactions
+  File "/home/ubuntu/.local/lib/python3.10/site-packages/sionna/rt/scene.py", line 1363, in coverage_map
+    output = self._solver_cm(max_depth=max_depth,
+  File "/home/ubuntu/.local/lib/python3.10/site-packages/sionna/rt/solver_cm.py", line 215, in __call__
+    cm, los_primitives = self._shoot_and_bounce(meas_plane,
+  File "/home/ubuntu/.local/lib/python3.10/site-packages/sionna/rt/solver_cm.py", line 2863, in _shoot_and_bounce
+    ris_ang_opening = self._apply_ris_reflection(ris_reflect_ind,
+  File "/home/ubuntu/.local/lib/python3.10/site-packages/sionna/rt/solver_cm.py", line 2347, in _apply_ris_reflection
+    act_data = self._extract_active_ris_rays(active_ind, int_point,
+  File "/home/ubuntu/.local/lib/python3.10/site-packages/sionna/rt/solver_cm.py", line 1663, in _extract_active_ris_rays
+    act_radii_curv = tf.gather(radii_curv, active_ind, axis=0)
+  File "/home/ubuntu/.local/lib/python3.10/site-packages/tensorflow/python/util/traceback_utils.py", line 153, in error_handler
+    raise e.with_traceback(filtered_tb) from None
+  File "/home/ubuntu/.local/lib/python3.10/site-packages/tensorflow/python/framework/constant_op.py", line 103, in convert_to_eager_tensor
+    return ops.EagerTensor(value, ctx.device_name, dtype)
+ValueError: Attempt to convert a value (None) with an unsupported type (<class 'NoneType'>) to a Tensor.
+'''
+
 '''python
             if tf.shape(ris_reflect_ind)[0] > 0:
                 # ris_e_field : [num_ris_reflected_samples, num_tx_patterns, 2]
