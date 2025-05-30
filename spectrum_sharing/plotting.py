@@ -14,12 +14,12 @@ def prop_fair_plotter(timestep, tx, grid_alloc, num_users, user_rates, max_data_
                         save_path="/home/ubuntu/spectrum_sharing/Simulations/"):
     """
     Plot the resource allocation grid, a dual-axis bar chart (RB allocation and throughput),
-    and the RB allocation time series.
+    and the RB allocation time series. Now handles unallocated RBs (-1).
     
     Parameters
     ----------
       grid_alloc: np.ndarray
-        2D numpy array with user IDs allocated for each RB.
+        2D numpy array with user IDs allocated for each RB. -1 indicates unallocated RBs.
 
       num_users: int
         total number of users.
@@ -36,20 +36,41 @@ def prop_fair_plotter(timestep, tx, grid_alloc, num_users, user_rates, max_data_
     rb_per_user_per_timestep = np.array([(grid_alloc == i).sum(axis=1) for i in range(num_users)])
     total_rbs_per_user = rb_per_user_per_timestep.sum(axis=1)
     
+    # Count unallocated RBs per timestep
+    unallocated_per_timestep = (grid_alloc == -1).sum(axis=1)
+    total_unallocated = unallocated_per_timestep.sum()
+    
     # Create figure with GridSpec:
     # Top row: two columns; Bottom row: single subplot spanning both columns.
     fig = plt.figure(figsize=(24, 16))
     gs = gridspec.GridSpec(2, 2, height_ratios=[1, 1])
     
+    # Create colormap with extra color for unallocated RBs
+    # Use tab20 for users, and add gray for unallocated
     cmap = plt.get_cmap('tab20', num_users)
+    colors = [cmap(i) for i in range(num_users)]
+    colors.append((0.8, 0.8, 0.8, 1.0))  # Light gray for unallocated
+    
+    # Create custom colormap
+    from matplotlib.colors import ListedColormap
+    extended_cmap = ListedColormap(colors)
     
     # ---------------------------
     # Top-Left: Resource Allocation Grid
     # ---------------------------
     ax1 = fig.add_subplot(gs[0, 0])
-    cax = ax1.imshow(grid_alloc.T, aspect='auto', cmap=cmap, origin='lower', vmin=0, vmax=num_users - 1)
-    cbar = fig.colorbar(cax, ax=ax1, ticks=range(num_users))
-    cbar.ax.set_yticklabels([f"User {i}" for i in range(num_users)])
+    # Shift grid values so -1 becomes the last color index
+    grid_display = grid_alloc.copy()
+    grid_display[grid_alloc == -1] = num_users  # Map -1 to the last color
+    
+    cax = ax1.imshow(grid_display.T, aspect='auto', cmap=extended_cmap, origin='lower', 
+                     vmin=0, vmax=num_users)
+    
+    # Create custom colorbar
+    cbar = fig.colorbar(cax, ax=ax1, ticks=list(range(num_users)) + [num_users])
+    cbar_labels = [f"User {i}" for i in range(num_users)] + ["Unallocated"]
+    cbar.ax.set_yticklabels(cbar_labels)
+    
     ax1.set_xlabel('Time Slot Index', fontsize=12)
     ax1.set_ylabel('Resource Block Index', fontsize=12)
     ax1.set_title(f'Resource Block Allocation Grid (TX {tx}, Time {timestep})', fontsize=14)
@@ -59,53 +80,171 @@ def prop_fair_plotter(timestep, tx, grid_alloc, num_users, user_rates, max_data_
     # Top-Right: Dual-Axis Bar Chart for Total RB Allocation & Throughput
     # ---------------------------
     ax2 = fig.add_subplot(gs[0, 1])
-    width = 0.45
-    x = np.arange(num_users)
+    width = 0.35
+    x = np.arange(num_users + 1)  # +1 for unallocated category
+    
+    # Prepare data including unallocated
+    rb_data = list(total_rbs_per_user) + [total_unallocated]
+    throughput_data = list(user_rates / 1e6) + [0]  # Unallocated has 0 throughput
+    bar_colors = colors  # Uses the same color scheme as the grid
     
     # Left axis: Total RB allocation bars
-    bars_rb = ax2.bar(x - width/2, total_rbs_per_user, width=width, 
+    bars_rb = ax2.bar(x - width/2, rb_data, width=width, 
                       label='Total RBs Allocated',
-                      color=[cmap(i) for i in range(num_users)])
+                      color=bar_colors)
     ax2.set_xlabel('User ID', fontsize=12)
     ax2.set_ylabel('Total RBs Allocated', color='black', fontsize=12)
     ax2.set_xticks(x)
-    ax2.set_xticklabels([f'User {i}' for i in range(num_users)], fontsize=6)
+    x_labels = [f'User {i}' for i in range(num_users)] + ['Unallocated']
+    ax2.set_xticklabels(x_labels, fontsize=8, rotation=45)
     ax2.tick_params(axis='y', labelcolor='black')
     
     # Right axis: Throughput bars in Mbps (actual values, not normalized)
     ax2_twin = ax2.twinx()
-    # Convert throughput from bps to Mbps
-    throughput_mbps = user_rates / 1e6
-    bars_tp = ax2_twin.bar(x + width/2, throughput_mbps, width=width, 
+    bars_tp = ax2_twin.bar(x + width/2, throughput_data, width=width, 
                            label='Throughput (Mbps)',
-                           color=[cmap(i) for i in range(num_users)], hatch='//', alpha=0.7)
+                           color=bar_colors, hatch='//', alpha=0.7)
     ax2_twin.set_ylabel('Throughput (Mbps)', color='black', fontsize=12)
     ax2_twin.tick_params(axis='y', labelcolor='black')
     
     # Manually create a combined legend
     # Use the first bar from each set to represent that series
-    ax2.legend([bars_rb[0], bars_tp[0]], ['Total RBs Allocated', 'Throughput (Mbps)'], loc='upper right', fontsize=10) # Change to fix legend
+    ax2.legend([bars_rb[0], bars_tp[0]], ['Total RBs Allocated', 'Throughput (Mbps)'], 
+               loc='upper right', fontsize=10)
     ax2.set_title('Total RB Allocation & Throughput per User', fontsize=14)
-    plt.setp(ax2.get_xticklabels(), fontsize=10)
     
     # ---------------------------
     # Bottom: RB Allocation Time Series (spanning full width)
     # ---------------------------
     ax3 = fig.add_subplot(gs[1, :])
     for i in range(num_users):
-        ax3.plot(range(time_slots), rb_per_user_per_timestep[i], label=f'User {i}', color=cmap(i))
+        ax3.plot(range(time_slots), rb_per_user_per_timestep[i], 
+                label=f'User {i}', color=cmap(i), linewidth=2)
+    
+    # Add unallocated RBs line
+    ax3.plot(range(time_slots), unallocated_per_timestep, 
+             label='Unallocated', color=(0.8, 0.8, 0.8, 1.0), 
+             linewidth=2, linestyle='--')
+    
     ax3.set_xlabel('Time Slot Index', fontsize=12)
     ax3.set_ylabel('RBs Allocated', fontsize=12)
     ax3.set_title('RB Allocation per User Over Time', fontsize=14)
     ax3.legend(loc='upper right', fontsize=10)
-    ax3.set_ylim(0, max(rb_per_user_per_timestep.max(), 1))
+    
+    # Set y-axis limits considering unallocated RBs
+    max_rbs = max(rb_per_user_per_timestep.max(), unallocated_per_timestep.max(), 1)
+    ax3.set_ylim(0, max_rbs)
     ax3.set_xlim(0, time_slots)  # x-axis from 0 to number of time slots
     plt.setp(ax3.get_xticklabels(), fontsize=10)
+    
+    # Add text annotation showing total unallocated RBs
+    total_rbs = time_slots * grid_alloc.shape[1]
+    unallocated_percentage = (total_unallocated / total_rbs) * 100
+    ax3.text(0.02, 0.98, f'Total Unallocated: {total_unallocated} RBs ({unallocated_percentage:.1f}%)', 
+             transform=ax3.transAxes, fontsize=12, verticalalignment='top',
+             bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.8))
     
     # Adjust layout so all subplots have equal spacing
     plt.tight_layout()
     fig.savefig(save_path + f"Scheduler_TX_{tx}_Time_{timestep}.png", dpi=600)
     plt.close()
+
+# def prop_fair_plotter(timestep, tx, grid_alloc, num_users, user_rates, max_data_sent_per_rb, 
+#                         save_path="/home/ubuntu/spectrum_sharing/Simulations/"):
+#     """
+#     Plot the resource allocation grid, a dual-axis bar chart (RB allocation and throughput),
+#     and the RB allocation time series.
+    
+#     Parameters
+#     ----------
+#       grid_alloc: np.ndarray
+#         2D numpy array with user IDs allocated for each RB.
+
+#       num_users: int
+#         total number of users.
+
+#       user_rates: np.ndarray
+#         1D with achieved throughput (bps) for each user.
+
+#       max_data_sent_per_rb: int
+#         Maximum bits per RB if BLER were zero.
+
+#     """
+#     # Compute per-user statistics
+#     time_slots = grid_alloc.shape[0]
+#     rb_per_user_per_timestep = np.array([(grid_alloc == i).sum(axis=1) for i in range(num_users)])
+#     total_rbs_per_user = rb_per_user_per_timestep.sum(axis=1)
+    
+#     # Create figure with GridSpec:
+#     # Top row: two columns; Bottom row: single subplot spanning both columns.
+#     fig = plt.figure(figsize=(24, 16))
+#     gs = gridspec.GridSpec(2, 2, height_ratios=[1, 1])
+    
+#     cmap = plt.get_cmap('tab20', num_users)
+    
+#     # ---------------------------
+#     # Top-Left: Resource Allocation Grid
+#     # ---------------------------
+#     ax1 = fig.add_subplot(gs[0, 0])
+#     cax = ax1.imshow(grid_alloc.T, aspect='auto', cmap=cmap, origin='lower', vmin=0, vmax=num_users - 1)
+#     cbar = fig.colorbar(cax, ax=ax1, ticks=range(num_users))
+#     cbar.ax.set_yticklabels([f"User {i}" for i in range(num_users)])
+#     ax1.set_xlabel('Time Slot Index', fontsize=12)
+#     ax1.set_ylabel('Resource Block Index', fontsize=12)
+#     ax1.set_title(f'Resource Block Allocation Grid (TX {tx}, Time {timestep})', fontsize=14)
+#     plt.setp(ax1.get_xticklabels(), fontsize=10)
+    
+#     # ---------------------------
+#     # Top-Right: Dual-Axis Bar Chart for Total RB Allocation & Throughput
+#     # ---------------------------
+#     ax2 = fig.add_subplot(gs[0, 1])
+#     width = 0.45
+#     x = np.arange(num_users)
+    
+#     # Left axis: Total RB allocation bars
+#     bars_rb = ax2.bar(x - width/2, total_rbs_per_user, width=width, 
+#                       label='Total RBs Allocated',
+#                       color=[cmap(i) for i in range(num_users)])
+#     ax2.set_xlabel('User ID', fontsize=12)
+#     ax2.set_ylabel('Total RBs Allocated', color='black', fontsize=12)
+#     ax2.set_xticks(x)
+#     ax2.set_xticklabels([f'User {i}' for i in range(num_users)], fontsize=6)
+#     ax2.tick_params(axis='y', labelcolor='black')
+    
+#     # Right axis: Throughput bars in Mbps (actual values, not normalized)
+#     ax2_twin = ax2.twinx()
+#     # Convert throughput from bps to Mbps
+#     throughput_mbps = user_rates / 1e6
+#     bars_tp = ax2_twin.bar(x + width/2, throughput_mbps, width=width, 
+#                            label='Throughput (Mbps)',
+#                            color=[cmap(i) for i in range(num_users)], hatch='//', alpha=0.7)
+#     ax2_twin.set_ylabel('Throughput (Mbps)', color='black', fontsize=12)
+#     ax2_twin.tick_params(axis='y', labelcolor='black')
+    
+#     # Manually create a combined legend
+#     # Use the first bar from each set to represent that series
+#     ax2.legend([bars_rb[0], bars_tp[0]], ['Total RBs Allocated', 'Throughput (Mbps)'], loc='upper right', fontsize=10) # Change to fix legend
+#     ax2.set_title('Total RB Allocation & Throughput per User', fontsize=14)
+#     plt.setp(ax2.get_xticklabels(), fontsize=10)
+    
+#     # ---------------------------
+#     # Bottom: RB Allocation Time Series (spanning full width)
+#     # ---------------------------
+#     ax3 = fig.add_subplot(gs[1, :])
+#     for i in range(num_users):
+#         ax3.plot(range(time_slots), rb_per_user_per_timestep[i], label=f'User {i}', color=cmap(i))
+#     ax3.set_xlabel('Time Slot Index', fontsize=12)
+#     ax3.set_ylabel('RBs Allocated', fontsize=12)
+#     ax3.set_title('RB Allocation per User Over Time', fontsize=14)
+#     ax3.legend(loc='upper right', fontsize=10)
+#     ax3.set_ylim(0, max(rb_per_user_per_timestep.max(), 1))
+#     ax3.set_xlim(0, time_slots)  # x-axis from 0 to number of time slots
+#     plt.setp(ax3.get_xticklabels(), fontsize=10)
+    
+#     # Adjust layout so all subplots have equal spacing
+#     plt.tight_layout()
+#     fig.savefig(save_path + f"Scheduler_TX_{tx}_Time_{timestep}.png", dpi=600)
+#     plt.close()
 
 
 def plot_total_rewards(episode, reward, throughput, fairness, se, pe, su, save_path="/home/ubuntu/spectrum_sharing/Simulations/"):

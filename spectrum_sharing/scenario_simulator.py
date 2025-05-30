@@ -408,10 +408,94 @@ class FullSimulator:
 
         return tf.reshape(tf.transpose(tf.stack(per_rx_sinr_db)) , [-1])
     
-    def proportional_fair_scheduler(self, blers, max_data_sent_per_rb, num_slots, number_rbs, alpha=0.15, disconnect=0.95):
+    # def proportional_fair_scheduler(self, blers, max_data_sent_per_rb, num_slots, number_rbs, alpha=0.15, disconnect=0.95):
+    #     """
+    #     Schedule RBs to users using proportional fair scheduling, 
+    #     while excluding users with no connection (BLER>disconnect).
+        
+    #     Parameters
+    #     ----------
+    #     blers: tf.Tensor of tf.float32
+    #         1D tensor of blers for each user.
+
+    #     max_data_sent_per_rb: float
+    #         Maximum bits per RB (given the numerology etc.).
+
+    #     num_slots: int
+    #         total number of time slots in 1 second.
+
+    #     number_rbs: int
+    #         number of resource blocks per slot.
+
+    #     alpha: float
+    #         EWMA weight for throughput update, a smaller alpha remembers the past more.
+
+    #     disconnect: float
+    #         The BLER limit above which the UE is not scheduled.
+
+        
+    #     Returns
+    #     -------
+    #     grid_alloc: np.ndarray
+    #         [time slots, RBs] with allocated user IDs.
+
+    #     avg_throughput: np.ndarray
+    #         [Users], final average throughput for each user.
+            
+    #     """
+    #     blers = blers.numpy()
+    #     num_users = len(blers)
+        
+    #     # Compute the instantaneous rate per RB for each user.
+    #     # If BLER > disconnect (no connection), instantaneous rate is 0.
+    #     instantaneous_rates = np.array([
+    #         (1 - bler) * max_data_sent_per_rb if bler < disconnect else 0.0
+    #         for bler in blers
+    #     ])
+        
+    #     # Create a grid to hold the scheduling decision for each RB.
+    #     grid_alloc = np.zeros((int(num_slots), int(number_rbs)), dtype=int)
+        
+    #     # To accumulate the bits sent to each user.
+    #     bits_sent_per_user = np.zeros(num_users)
+        
+    #     # Simulate scheduling over each resource block in the grid.
+    #     for t in range(int(num_slots)):
+    #         for rb in range(int(number_rbs)):
+    #             # Compute PF metrics; if a user's instantaneous rate is zero (no connection),
+    #             # assign a very low metric so it is never scheduled.
+    #             pf_metrics = np.where(instantaneous_rates > 0,
+    #                                 instantaneous_rates / (self.avg_throughput + 1e-6),
+    #                                 0)
+
+    #             # Select the user(s) with the highest PF metric.
+    #             max_indices = np.flatnonzero(pf_metrics == np.max(pf_metrics))
+
+    #             # Randomly select one of the max indices.
+    #             scheduled_user = int(np.random.choice(max_indices))
+
+    #             # Record the allocation.
+    #             grid_alloc[t, rb] = scheduled_user
+                
+    #             # Add the bits transmitted in this RB for the scheduled user.
+    #             bits_sent_per_user[scheduled_user] += instantaneous_rates[scheduled_user]
+                
+    #             # Update the scheduled user's average throughput with an EWMA.
+    #             self.avg_throughput[scheduled_user] = ((1 - alpha) * self.avg_throughput[scheduled_user] 
+    #                                             + alpha * instantaneous_rates[scheduled_user])
+
+        
+    #     # Since the simulation covers 1 second, the total bits sent equals bps.
+    #     user_rates = bits_sent_per_user  # bits per second
+
+    #     return grid_alloc, user_rates
+
+    def proportional_fair_scheduler(self, blers, max_data_sent_per_rb, num_slots, number_rbs, 
+                                alpha=0.15, disconnect=0.95, max_resource_percentage=0.30):
         """
         Schedule RBs to users using proportional fair scheduling, 
-        while excluding users with no connection (BLER>disconnect).
+        while excluding users with no connection (BLER>disconnect) and capping
+        resource allocation per user to a maximum percentage.
         
         Parameters
         ----------
@@ -432,12 +516,15 @@ class FullSimulator:
 
         disconnect: float
             The BLER limit above which the UE is not scheduled.
+        
+        max_resource_percentage: float
+            Maximum percentage of total resources any single user can receive (default 0.30 = 30%).
 
         
         Returns
         -------
         grid_alloc: np.ndarray
-            [time slots, RBs] with allocated user IDs.
+            [time slots, RBs] with allocated user IDs. Unallocated RBs remain as 0.
 
         avg_throughput: np.ndarray
             [Users], final average throughput for each user.
@@ -454,10 +541,16 @@ class FullSimulator:
         ])
         
         # Create a grid to hold the scheduling decision for each RB.
-        grid_alloc = np.zeros((int(num_slots), int(number_rbs)), dtype=int)
+        # Initialize with -1 to indicate unallocated RBs (will be converted to 0 later for plotting)
+        grid_alloc = np.full((int(num_slots), int(number_rbs)), -1, dtype=int)
         
         # To accumulate the bits sent to each user.
         bits_sent_per_user = np.zeros(num_users)
+        
+        # Track resource allocation count per user
+        rb_count_per_user = np.zeros(num_users, dtype=int)
+        total_rbs = int(num_slots) * int(number_rbs)
+        max_rbs_per_user = int(total_rbs * max_resource_percentage)
         
         # Simulate scheduling over each resource block in the grid.
         for t in range(int(num_slots)):
@@ -467,6 +560,14 @@ class FullSimulator:
                 pf_metrics = np.where(instantaneous_rates > 0,
                                     instantaneous_rates / (self.avg_throughput + 1e-6),
                                     0)
+                
+                # Zero out metrics for users who have reached their resource cap
+                pf_metrics = np.where(rb_count_per_user < max_rbs_per_user, pf_metrics, 0)
+                
+                # Check if any user can be scheduled (has non-zero metric)
+                if np.max(pf_metrics) == 0:
+                    # No user can be scheduled - leave this RB unallocated
+                    continue
 
                 # Select the user(s) with the highest PF metric.
                 max_indices = np.flatnonzero(pf_metrics == np.max(pf_metrics))
@@ -477,6 +578,9 @@ class FullSimulator:
                 # Record the allocation.
                 grid_alloc[t, rb] = scheduled_user
                 
+                # Update resource count for this user
+                rb_count_per_user[scheduled_user] += 1
+                
                 # Add the bits transmitted in this RB for the scheduled user.
                 bits_sent_per_user[scheduled_user] += instantaneous_rates[scheduled_user]
                 
@@ -484,6 +588,7 @@ class FullSimulator:
                 self.avg_throughput[scheduled_user] = ((1 - alpha) * self.avg_throughput[scheduled_user] 
                                                 + alpha * instantaneous_rates[scheduled_user])
 
+        # Keep unallocated RBs as -1 for the modified plotter to handle
         
         # Since the simulation covers 1 second, the total bits sent equals bps.
         user_rates = bits_sent_per_user  # bits per second

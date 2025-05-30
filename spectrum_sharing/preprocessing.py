@@ -18,7 +18,7 @@ from spectrum_sharing.logger import logger
 from spectrum_sharing.scenario_simulator import FullSimulator
 from spectrum_sharing.channel_simulator import ChannelSimulator
 
-CONFIG_NAME = "preprocessing" # the only config selection in the script
+CONFIG_NAME = "preprocessingMCS" # the only config selection in the script
 
 def main(cfg):
     """
@@ -42,123 +42,131 @@ def main(cfg):
     for id, tx in enumerate(transmitters.values()):
         powers[id] = powers[id] + list(range(int(tx["min_power"]), int(tx["max_power"]) + 1))
     powers = list(product(*[powers[id] for id in range(num_tx)])) # all possible combinations of powers
+    mcs = None
 
     # ------------------------------------------------------------------------------------------------------------------------------------------
     # Primary bands processing
-    for id, tx in enumerate(transmitters.values()):
-        initial_state = tf.cast(tf.one_hot(id, num_tx, dtype=tf.int16), dtype=tf.bool)
+    if hasattr(cfg, 'mcs'):
+        mcs_list = cfg.mcs.values()
+    else:
+        mcs_list = [None]
 
-        primaryBand = FullSimulator(cfg=cfg, # reinstantiating the simulator
-                                    prefix="primary",
-                                    scene_name= cfg.scene_path + "simple_OSM_scene.xml", #sionna.rt.scene.simple_street_canyon,
-                                    carrier_frequency=tx["primary_carrier_freq"],
-                                    pmax=100, # maximum power
-                                    transmitters=grid_transmitters, # use for creating a grid
-                                    # transmitters=transmitters,
-                                    num_rx = 1,
-                                    max_depth= cfg.max_depth,
-                                    cell_size= cfg.cell_size,
-                                    initial_state = tf.cast(tf.one_hot(id, num_tx_grid, dtype=tf.int16), dtype=tf.bool),
-                                    subcarrier_spacing = cfg.primary_subcarrier_spacing,
-                                    fft_size = cfg.primary_fft_size,
-                                    batch_size=cfg.batch_size,
-                                    )
-        logger.info(f"Scene size: {primaryBand.scene.size.numpy()}")
-        logger.info(f"Scene centre: {primaryBand.scene.center.numpy()}")
+    for mcs_id, mcs in enumerate(mcs_list):
+        logger.warning(f"Simulating for MCS: {mcs}")
+        mcs_str = f"MCS: {mcs}" if mcs is not None else ""
+        for id, tx in enumerate(transmitters.values()):
+            initial_state = tf.cast(tf.one_hot(id, num_tx, dtype=tf.int16), dtype=tf.bool)
 
-        if id == 0:
-            logger.warning("Generating grid and users.")          
+            primaryBand = FullSimulator(cfg=cfg, # reinstantiating the simulator
+                                        prefix="primary",
+                                        scene_name= cfg.scene_path + "simple_OSM_scene.xml", #sionna.rt.scene.simple_street_canyon,
+                                        carrier_frequency=tx["primary_carrier_freq"],
+                                        pmax=100, # maximum power
+                                        transmitters=grid_transmitters, # use for creating a grid
+                                        # transmitters=transmitters,
+                                        num_rx = 1,
+                                        max_depth= cfg.max_depth,
+                                        cell_size= cfg.cell_size,
+                                        initial_state = tf.cast(tf.one_hot(id, num_tx_grid, dtype=tf.int16), dtype=tf.bool),
+                                        subcarrier_spacing = cfg.primary_subcarrier_spacing,
+                                        fft_size = cfg.primary_fft_size,
+                                        batch_size=cfg.batch_size,
+                                        )
+            logger.info(f"Scene size: {primaryBand.scene.size.numpy()}")
+            logger.info(f"Scene centre: {primaryBand.scene.center.numpy()}")
 
-            grid = primaryBand.grid # use the same grid throughout to prevent minor discrepancies
-            # plot_coverage_map(grid, cfg.images_path, title=f"Grid", plot_min=0, plot_max=1)
-            num_tx = len(transmitters)
-            np.save(cfg.assets_path + grid_filename, grid)
-            if users == {}:
-                users = generate_users(grid, users) # Generate the user positions from the validity matrix
-                sinrs = np.full((num_tx, primaryBand.grid.shape[0], primaryBand.grid.shape[1]), cfg.min_sinr, dtype=np.float32) # initialise to the minimum SINR dB value
-                blers = np.ones((num_tx, primaryBand.grid.shape[0], primaryBand.grid.shape[1]), dtype=np.float32) # initialise to the minimum SINR dB value
-                bers = np.ones((num_tx, primaryBand.grid.shape[0], primaryBand.grid.shape[1]), dtype=np.float32) # initialise to the minimum SINR dB value
+            if id == 0:
+                logger.warning("Generating grid and users.")          
 
-            # Slicing up user groups to avoid exceeding memory
-            num_tx = len(transmitters)
-            users_list = list(users.items())
-            slices = chunk_list(users_list, cfg.num_slices)
+                grid = primaryBand.grid # use the same grid throughout to prevent minor discrepancies
+                # plot_coverage_map(grid, cfg.images_path, title=f"Grid", plot_min=0, plot_max=1)
+                num_tx = len(transmitters)
+                np.save(cfg.assets_path + grid_filename, grid)
+                if users == {}:
+                    users = generate_users(grid, users) # Generate the user positions from the validity matrix
+                    sinrs = np.full((num_tx, primaryBand.grid.shape[0], primaryBand.grid.shape[1]), cfg.min_sinr, dtype=np.float32) # initialise to the minimum SINR dB value
+                    blers = np.ones((num_tx, primaryBand.grid.shape[0], primaryBand.grid.shape[1]), dtype=np.float32) # initialise to the minimum SINR dB value
+                    bers = np.ones((num_tx, primaryBand.grid.shape[0], primaryBand.grid.shape[1]), dtype=np.float32) # initialise to the minimum SINR dB value
 
-        if not os.path.exists(cfg.assets_path + primary_maps_filename):
-            logger.info("Processing primary maps.")
+                # Slicing up user groups to avoid exceeding memory
+                num_tx = len(transmitters)
+                users_list = list(users.items())
+                slices = chunk_list(users_list, cfg.num_slices)
 
-            for slice_id, slice in enumerate(slices): 
+            if not os.path.exists(cfg.assets_path + primary_maps_filename + mcs_str):
+                logger.info("Processing primary maps.")
 
-                start = perf_counter()
-                if len(slice) == 0:
-                    break
+                for slice_id, slice in enumerate(slices): 
 
-                # print_gpu_memory_stats()
-                if len(slice) != primaryBand.num_rx: # avoiding reinstantiating to hopefully maintain the jit compilation
-                    logger.warning("Clearing and deferring primaryBand recreation due to num_rx mismatch.")
-                    tf.keras.backend.clear_session()
-                    if hasattr(primaryBand, 'simulator') and hasattr(primaryBand.simulator, 'h_freq'):
-                        primaryBand.simulator.h_freq = None
-                    del primaryBand
-                    gc.collect()
-                    logger.warning(f"Reinitializing primaryBand for slice {slice_id} with num_rx = {len(slice)}")
-                    primaryBand = FullSimulator(cfg=cfg,
-                                                prefix="primary",
-                                                scene_name=cfg.scene_path + "simple_OSM_scene.xml",
-                                                carrier_frequency=tx["primary_carrier_freq"],
-                                                pmax=100,
-                                                transmitters=transmitters,
-                                                num_rx=len(slice),
-                                                max_depth=cfg.max_depth,
-                                                cell_size=cfg.cell_size,
-                                                initial_state=initial_state,
-                                                subcarrier_spacing=cfg.primary_subcarrier_spacing,
-                                                fft_size=cfg.primary_fft_size,
-                                                batch_size=cfg.batch_size)
-                    primaryBand.grid = grid # giving it the primary grid for consistency - unsure if necessary
+                    start = perf_counter()
+                    if len(slice) == 0:
+                        break
+
+                    # print_gpu_memory_stats()
+                    if len(slice) != primaryBand.num_rx: # avoiding reinstantiating to hopefully maintain the jit compilation
+                        logger.warning("Clearing and deferring primaryBand recreation due to num_rx mismatch.")
+                        tf.keras.backend.clear_session()
+                        if hasattr(primaryBand, 'simulator') and hasattr(primaryBand.simulator, 'h_freq'):
+                            primaryBand.simulator.h_freq = None
+                        del primaryBand
+                        gc.collect()
+                        logger.warning(f"Reinitializing primaryBand for slice {slice_id} with num_rx = {len(slice)}")
+                        primaryBand = FullSimulator(cfg=cfg,
+                                                    prefix="primary",
+                                                    scene_name=cfg.scene_path + "simple_OSM_scene.xml",
+                                                    carrier_frequency=tx["primary_carrier_freq"],
+                                                    pmax=100,
+                                                    transmitters=transmitters,
+                                                    num_rx=len(slice),
+                                                    max_depth=cfg.max_depth,
+                                                    cell_size=cfg.cell_size,
+                                                    initial_state=initial_state,
+                                                    subcarrier_spacing=cfg.primary_subcarrier_spacing,
+                                                    fft_size=cfg.primary_fft_size,
+                                                    batch_size=cfg.batch_size)
+                        primaryBand.grid = grid # giving it the primary grid for consistency - unsure if necessary
+                        
+                    primaryBand.receivers = None # clearing the previous receivers forces an update
+
+                    users_slice = dict(slice)
+                    # MCS can be changed here - tuple in (table, index)
+                    output = primaryBand(users_slice, initial_state, transmitters, mcs=mcs) # not using rate, calculate in the loop
+                    logger.info("Completed slice.")
+
+                    for user, sinr, bler, ber in zip(users_slice.values(), output["sinr"][id].numpy(), output["bler"][id].numpy(), output["ber"][id].numpy()):
+                        y,x = user["position"][0], user["position"][1]
+                        sinrs[id,y,x] = sinr
+                        blers[id,y,x] = bler
+                        bers[id,y,x] = ber
+
+                    del output
                     
-                primaryBand.receivers = None # clearing the previous receivers forces an update
+                    if (slice_id % 5 == 0) or (slice_id == len(slices) - 1):
+                        logger.info("Plotting.")
+                        plot_coverage_map(sinrs[id,:,:], cfg.assets_path + "Maps/", title=f"SINRs map for Transmitter {id} MCS {mcs}", cmap="viridis")
+                        plot_coverage_map(blers[id,:,:], cfg.assets_path + "Maps/", title=f"BLERs map for Transmitter {id} MCS {mcs}", plot_min=0, plot_max=1, cmap="inferno_r")
+                        plot_coverage_map(bers[id,:,:], cfg.assets_path + "Maps/", title=f"BERs map for Transmitter {id} MCS {mcs}", plot_min=0, plot_max=1, cmap="inferno_r")
 
-                users_slice = dict(slice)
-                # MCS can be changed here - tuple in (table, index)
-                output = primaryBand(users_slice, initial_state, transmitters, mcs=None) # not using rate, calculate in the loop
-                logger.info("Completed slice.")
+                    end = perf_counter()
+                    time = end - start
+                    logger.info(f"Slice took : {time}")
 
-                for user, sinr, bler, ber in zip(users_slice.values(), output["sinr"][id].numpy(), output["bler"][id].numpy(), output["ber"][id].numpy()):
-                    y,x = user["position"][0], user["position"][1]
-                    sinrs[id,y,x] = sinr
-                    blers[id,y,x] = bler
-                    bers[id,y,x] = ber
-
-                del output
-                
-                if (slice_id % 5 == 0) or (slice_id == len(slices) - 1):
-                    logger.info("Plotting.")
-                    plot_coverage_map(sinrs[id,:,:], cfg.assets_path + "Maps/", title=f"SINRs map for Transmitter {id}", cmap="viridis")
-                    plot_coverage_map(blers[id,:,:], cfg.assets_path + "Maps/", title=f"BLERs map for Transmitter {id}", plot_min=0, plot_max=1, cmap="inferno_r")
-                    plot_coverage_map(bers[id,:,:], cfg.assets_path + "Maps/", title=f"BERs map for Transmitter {id}", plot_min=0, plot_max=1, cmap="inferno_r")
-
-                end = perf_counter()
-                time = end - start
-                logger.info(f"Slice took : {time}")
-
-            tf.keras.backend.clear_session()
-            if hasattr(primaryBand, 'simulator') and hasattr(primaryBand.simulator, 'h_freq'):
-                primaryBand.simulator.h_freq = None
-            del primaryBand
-            tf.keras.backend.clear_session()
-            gc.collect()
-
-            if id == num_tx - 1:
-                # Save on final loop
-                logger.warning(f"Saving primary maps at {cfg.assets_path + primary_maps_filename}.")
-                primary_maps = np.stack([sinrs, blers, bers], axis=0).astype(np.float16) # save as float 16 
-                np.save(cfg.assets_path + primary_maps_filename, primary_maps)
-                del primary_maps
+                tf.keras.backend.clear_session()
+                if hasattr(primaryBand, 'simulator') and hasattr(primaryBand.simulator, 'h_freq'):
+                    primaryBand.simulator.h_freq = None
+                del primaryBand
+                tf.keras.backend.clear_session()
                 gc.collect()
-        
-        else:
-            logger.warning("Skipping primary maps computation. File already exists.")
+
+                if id == num_tx - 1:
+                    # Save on final loop
+                    primary_maps = np.stack([sinrs, blers, bers], axis=0).astype(np.float16) # save as float 16 
+                    np.save(cfg.assets_path + primary_maps_filename + mcs_str, primary_maps)
+                    del primary_maps
+                    gc.collect()
+            
+            else:
+                logger.warning("Skipping primary maps computation. File already exists.")
 
     return
 

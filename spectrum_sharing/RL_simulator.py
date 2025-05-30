@@ -169,9 +169,19 @@ class PrecomputedEnv(gym.Env):
                            "sinr": (math.floor(self.cfg.min_sinr), math.ceil(self.cfg.max_sinr))} 
         
         # Loading the precomputed maps
-        self.primary_maps = np.load(self.cfg.assets_path + "primary_maps.npy")
-        self.sharing_maps = np.load(self.cfg.assets_path + "sharing_maps.npy")
-        self.valid_area = np.load(self.cfg.assets_path + "grid.npy")
+        try:
+            self.primary_maps = np.load(self.cfg.assets_path + "primary_maps.npy")
+            self.sharing_maps = np.load(self.cfg.assets_path + "sharing_maps.npy")
+            self.valid_area = np.load(self.cfg.assets_path + "grid.npy")
+        except FileNotFoundError as e:
+            logger.error(f"Precomputed maps not found: {e}. Trying old.")
+            try: 
+                self.primary_maps = np.load(self.cfg.assets_path + "primary_maps_old.npy")
+                self.sharing_maps = np.load(self.cfg.assets_path + "sharing_maps_old.npy")
+                self.valid_area = np.load(self.cfg.assets_path + "grid_old.npy")
+            except FileNotFoundError as e:
+                logger.critical(f"Old precomputed maps not found: {e}. Please run the map generation script first.")
+                raise e 
 
          # Normalising the coverage maps
         self.norm_primary_sinr_maps = (np.clip(self.primary_maps[0], a_min=self.cfg.min_sinr, a_max=self.cfg.max_sinr) - self.cfg.min_sinr) / (self.cfg.max_sinr - self.cfg.min_sinr) # min max between +- 100
@@ -288,49 +298,61 @@ class PrecomputedEnv(gym.Env):
                 sinr_image = sinr_map[tx_id]
                 bler_image = bler_map[tx_id]
 
-                height, width = sinr_image.shape
+                # height, width = sinr_image.shape
 
-                plt.figure(figsize=(12, 5))
+                # Extra plotting to debug coverage maps
+                # plt.figure(figsize=(12, 5))
 
-                # --- SINR Plot ---
-                plt.subplot(1, 2, 1)
-                plt.imshow(sinr_image, origin='lower', cmap='viridis', vmin=self.cfg.min_sinr, vmax=self.cfg.max_sinr)
-                plt.colorbar(label='SINR (dB)')
-                plt.title(f'SINR Map - Band {band_id}, TX {tx_id}')
-                plt.xlim(0, width)
-                plt.ylim(0, height)
+                # # --- SINR Plot ---
+                # plt.subplot(1, 2, 1)
+                # plt.imshow(sinr_image, origin='lower', cmap='viridis', vmin=self.cfg.min_sinr, vmax=self.cfg.max_sinr)
+                # plt.colorbar(label='SINR (dB)')
+                # plt.title(f'SINR Map - Band {band_id}, TX {tx_id}')
+                # plt.xlim(0, width)
+                # plt.ylim(0, height)
 
-                # Scatter user positions
-                plt.scatter(user_positions[:, 1], user_positions[:, 0], c='white', s=20, edgecolors='black')
-                for y, x in user_positions:
-                    x = float(x)
-                    y = float(y)
-                    plt.text(x + 0.5, y + 0.5, f'({int(x)},{int(y)})', color='white', fontsize=6)
+                # # Scatter user positions
+                # plt.scatter(user_positions[:, 1], user_positions[:, 0], c='white', s=20, edgecolors='black')
+                # for y, x in user_positions:
+                #     x = float(x)
+                #     y = float(y)
+                #     plt.text(x + 0.5, y + 0.5, f'({int(x)},{int(y)})', color='white', fontsize=6)
 
-                # --- BLER Plot ---
-                plt.subplot(1, 2, 2)
-                plt.imshow(bler_image, origin='lower', cmap='cool', vmin=0, vmax=1)
-                plt.colorbar(label='BLER')
-                plt.title(f'BLER Map - Band {band_id}, TX {tx_id}')
-                plt.xlim(0, width)
-                plt.ylim(0, height)
+                # # --- BLER Plot ---
+                # plt.subplot(1, 2, 2)
+                # plt.imshow(bler_image, origin='lower', cmap='cool', vmin=0, vmax=1)
+                # plt.colorbar(label='BLER')
+                # plt.title(f'BLER Map - Band {band_id}, TX {tx_id}')
+                # plt.xlim(0, width)
+                # plt.ylim(0, height)
 
-                # Scatter user positions
-                plt.scatter(user_positions[:, 1], user_positions[:, 0], c='white', s=20, edgecolors='black')
-                for y, x in user_positions:
-                    x = float(x)
-                    y = float(y)
-                    plt.text(x + 0.5, y + 0.5, f'({int(x)},{int(y)})', color='white', fontsize=6)
+                # # Scatter user positions
+                # plt.scatter(user_positions[:, 1], user_positions[:, 0], c='white', s=20, edgecolors='black')
+                # for y, x in user_positions:
+                #     x = float(x)
+                #     y = float(y)
+                #     plt.text(x + 0.5, y + 0.5, f'({int(x)},{int(y)})', color='white', fontsize=6)
 
-                # Save and close
-                plt.tight_layout()
-                plt.savefig(self.images_path + f"Plot for band {band_id}, tx{tx_id}.png", dpi=400)
-                plt.close()
+                # # Save and close
+                # plt.tight_layout()
+                # plt.savefig(self.images_path + f"Plot for band {band_id}, tx{tx_id}.png", dpi=400)
+                # plt.close()
 
-                sinr = tf.gather_nd(sinr_map[tx_id], user_positions)
+                # Apply local averaging
+                averaged_sinr_map = self._apply_local_average(sinr_map[tx_id], kernel_size=2)
+                averaged_bler_map = self._apply_local_average(bler_map[tx_id], kernel_size=2)
+
+                # Gather local averages for each user
+                sinr = tf.gather_nd(averaged_sinr_map, user_positions)
+                bler = tf.gather_nd(averaged_bler_map, user_positions)
+
                 sinrs.append(sinr)
-                bler = tf.gather_nd(bler_map[tx_id], user_positions)
                 blers.append(bler)
+
+                # sinr = tf.gather_nd(sinr_map[tx_id], user_positions)
+                # sinrs.append(sinr)
+                # bler = tf.gather_nd(bler_map[tx_id], user_positions)
+                # blers.append(bler)
                 # Scheduling
                 if band_id == 0: # sharing
                     grid_alloc, user_rates = self.scheduler(bler, self.sharing_max_per_rb, self.sharing_num_slots, self.sharing_number_rbs)
@@ -436,6 +458,29 @@ class PrecomputedEnv(gym.Env):
 
         # returns the 5-tuple (observation, reward, terminated, truncated, info)
         return self._get_obs(), reward, self.terminated, self.truncated, {"rewards": updates}
+
+
+    def _apply_local_average(self, map_tensor, kernel_size=3):
+        """ Used to smooth out coverage map to give averaged BLERs and SINRs for very fine pregenerated maps."""
+        # Ensure the kernel has the same dtype as the input
+        dtype = map_tensor.dtype
+
+        # Add batch and channel dims: [H, W] -> [1, H, W, 1]
+        map_tensor = tf.expand_dims(tf.expand_dims(map_tensor, axis=0), axis=-1)
+        
+        # Create a box filter (mean filter) with the same dtype
+        kernel = tf.ones((kernel_size, kernel_size, 1, 1), dtype=dtype) / tf.cast(kernel_size * kernel_size, dtype)
+
+        # Pad to handle edges
+        pad = kernel_size // 2
+        map_tensor_padded = tf.pad(map_tensor, [[0, 0], [pad, pad], [pad, pad], [0, 0]], mode='REFLECT')
+
+        # Apply 2D convolution to average over local neighborhood
+        averaged = tf.nn.conv2d(map_tensor_padded, kernel, strides=1, padding='VALID')
+
+        # Remove batch and channel dims
+        return tf.squeeze(averaged, axis=[0, -1])  # shape: [H, W]
+
 
     def _get_obs(self):
         """ 
@@ -842,9 +887,7 @@ class SionnaEnv(gym.Env):
             tf.cast(tf.expand_dims(sharingOutput["rate"], axis=1), dtype=tf.float32)  # Expanding to [2,1,20]
         ], axis=1)  # Concatenating along axis 1 to make it [Transmitters, Bands, UEs]
         throughput, per_ue_throughput, per_ap_per_band_throughput = get_throughput(self.rates)
-
         fairness = get_fairness(per_ue_throughput)
-
         primary_power = tf.convert_to_tensor(np.power(10, (np.array([tx["primary_power"] for tx in self.transmitters.values()]) - 30) / 10), dtype=tf.float32) # in W
         sharing_power = tf.convert_to_tensor(np.power(10, (np.array([tx["sharing_power"] for tx in self.transmitters.values()]) - 30) / 10), dtype=tf.float32)
 
