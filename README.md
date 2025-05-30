@@ -104,7 +104,7 @@ Sharing maps:
 
 In Sionna 0.19.2/ solver_cm.py. Remove below as to patch intermittent error:  "CRITICAL - Coverage map generation failed: Attempt to convert a value (None) with an unsupported type (class 'NoneType') to a Tensor." linked to RIS. Note: only appropriate if not using RIS. Lines 2854->
 
-'''bash
+```bash
   File "/home/ubuntu/spectrum_sharing_v0/spectrum_sharing/scenario_simulator.py", line 280, in __call__
     self.cm, self.sinr = self._coverage_map() 
   File "/home/ubuntu/spectrum_sharing_v0/spectrum_sharing/scenario_simulator.py", line 240, in _coverage_map
@@ -126,9 +126,9 @@ In Sionna 0.19.2/ solver_cm.py. Remove below as to patch intermittent error:  "C
   File "/home/ubuntu/.local/lib/python3.10/site-packages/tensorflow/python/framework/constant_op.py", line 103, in convert_to_eager_tensor
     return ops.EagerTensor(value, ctx.device_name, dtype)
 ValueError: Attempt to convert a value (None) with an unsupported type (<class 'NoneType'>) to a Tensor.
-'''
+```
 
-'''python
+```python
             if tf.shape(ris_reflect_ind)[0] > 0:
                 # ris_e_field : [num_ris_reflected_samples, num_tx_patterns, 2]
                 # ris_field_es : [num_ris_reflected_samples, 3]
@@ -161,7 +161,7 @@ ValueError: Attempt to convert a value (None) with an unsupported type (<class '
                                             ris_dirs_curv], axis=0)
                 updated_ang_opening = tf.concat([updated_ang_opening,
                                                 ris_ang_opening], axis=0)
-'''
+```
 
 ## Repo Structure
 
