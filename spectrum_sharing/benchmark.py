@@ -19,7 +19,7 @@ from spectrum_sharing.RL_simulator import SionnaEnv, PrecomputedEnv
 from spectrum_sharing.DQN_agent import Agent
 from spectrum_sharing.logger import logger
 
-CONFIG_NAME = "precomputed" # the only config selection in the script
+CONFIG_NAME = "simulation2" # the only config selection in the script
 
 # Print out the real power levels etc that are being selected
 # Is the state it converges on always the same one?
@@ -121,6 +121,16 @@ def main(cfg, test_index):
 
 if __name__ == "__main__":
     with initialize(version_base=None, config_path="Config", job_name=CONFIG_NAME):
+        gpus = tf.config.list_physical_devices('GPU')
+        logger.info(f'Number of GPUs available : {len(gpus)}')
+        if gpus:
+            gpu_num = 0 # Index of the GPU to be used
+            try:
+                tf.config.set_visible_devices(gpus[gpu_num], 'GPU')
+                logger.warning(f'Only GPU number {gpu_num} used.')
+                tf.config.experimental.set_memory_growth(gpus[gpu_num], True) # manages memory growth
+            except RuntimeError as e:
+                logger.critical(e)
         config = compose(config_name=CONFIG_NAME)
         sionna.config.xla_compat=True
         sionna.config.seed=config.random_seed
