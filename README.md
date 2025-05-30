@@ -95,10 +95,10 @@ Sharing maps:
 <img src="https://github.com/user-attachments/assets/695db8f2-2bf5-4ed7-ad30-9df79b0887bd">
 
 ### Reward Tracking Across Episodes
-![Rewards_Tracker](https://github.com/user-attachments/assets/b31b3aae-3b27-424b-8ddf-f07781419b17)
+![Rewards_Tracker_20250527_122134](https://github.com/user-attachments/assets/bbf527fd-ce5d-4fe2-909f-f08bffd820e1)
 
 ### Scheduling Insights
-![Scheduler_TX_1_Time_6](https://github.com/user-attachments/assets/33b3042e-1bfc-47cb-8350-6c3b36d2fcd1)
+![Scheduler_TX_tx1_Time_0](https://github.com/user-attachments/assets/cbfdb0a5-c2ae-4988-96cb-df62b16cf839)
 
 ## Known Limitations
 
