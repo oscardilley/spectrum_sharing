@@ -55,7 +55,10 @@ class Agent:
         self.num_tx = num_tx
         self.observation_space = observation_space
 
-        self.path = path + "model" # add .h5 to switch to H5 saved model format
+        if path[-1] == "/":
+            self.path = path + "model" # add .h5 to switch to H5 saved model format
+        else:
+            self.path = path
 
         # Obtaining preprocessed actions
         self.actions = possible_actions

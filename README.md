@@ -102,6 +102,8 @@ Sharing maps:
 
 ## Known Limitations
 
+The version of Sionna used is highly dependent on the Optix driver and does not work with NVIDIA 570 drivers. Tested and working with 550-server.
+
 In Sionna 0.19.2/ solver_cm.py. Remove below as to patch intermittent error:  "CRITICAL - Coverage map generation failed: Attempt to convert a value (None) with an unsupported type (class 'NoneType') to a Tensor." linked to RIS. Note: only appropriate if not using RIS. Lines 2854->
 
 ```bash

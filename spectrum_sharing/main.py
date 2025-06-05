@@ -24,7 +24,7 @@ from spectrum_sharing.DQN_agent import Agent, ReplayBuffer
 from spectrum_sharing.logger import logger
 from spectrum_sharing.plotting import plot_total_rewards
 
-CONFIG_NAME = "simulation4" # the only config selection in the script
+CONFIG_NAME = "simulation5" # the only config selection in the script
 
 def main(cfg):
     """Run the simulator."""
@@ -109,12 +109,18 @@ def main(cfg):
                            save_path=cfg.images_path)
         
         # Save the results 
+        avg_rewards = [np.mean(ep) for ep in np.array(reward_per_episode[:e+1])]
+        min_rewards = [np.min(ep) for ep in np.array(reward_per_episode[:e+1])]
+        max_rewards = [np.max(ep) for ep in np.array(reward_per_episode[:e+1])]
         results = {
             "avg_throughput": avg_throughput_per_episode[:e+1],
             "avg_fairness": avg_fairness_per_episode[:e+1],
             "avg_se": avg_se_per_episode[:e+1],
             "avg_pe": avg_pe_per_episode[:e+1],
             "avg_su": avg_su_per_episode[:e+1],
+            "avg_reward": avg_rewards,
+            "min_reward": min_rewards,
+            "max_reward": max_rewards,
         }
         df = pd.DataFrame(results)
         df.index.name = "episode"

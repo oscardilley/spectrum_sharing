@@ -1,11 +1,11 @@
 # Large files
-logging/
-Assets/
-spectrum_sharing/Assets/
-spectrum_sharing/Simulations/
-Buffer/
-spectrum_sharing/Buffer/
-Simulations/
+logging/*
+Assets/*
+spectrum_sharing/Assets/*
+spectrum_sharing/Simulations/*
+Buffer/*
+spectrum_sharing/Buffer/*
+Simulations/*
 *.pickle
 
 # Byte-compiled / optimized / DLL files
@@ -14,7 +14,7 @@ __pycache__/
 *$py.class
 
 # C extensions
-*.so
+*.so 
 
 # Distribution / packaging
 .Python

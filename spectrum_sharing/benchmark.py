@@ -14,16 +14,20 @@ from hydra import compose, initialize
 import numpy as np
 import os
 import sys
+import pandas as pd
+from datetime import datetime
+import pathlib
 
 from spectrum_sharing.RL_simulator import SionnaEnv, PrecomputedEnv
 from spectrum_sharing.DQN_agent import Agent
 from spectrum_sharing.logger import logger
 
-CONFIG_NAME = "simulation2" # the only config selection in the script
+CONFIG_NAME = "simulation5" # the only config selection in the script
 
-# Print out the real power levels etc that are being selected
-# Is the state it converges on always the same one?
-
+tests = {"Agent": None, 
+        "TX 0 ON, Avg": ((1, 1), (0, 1)), 
+        "TX 1 ON, Avg": ((0, 1), (1, 1)), 
+        "Both ON, Avg": ((1, 1), (1, 1))} # static power levels determined by start levels in config
 
 def main(cfg, test_index):
     """Run the simulator."""
@@ -41,17 +45,13 @@ def main(cfg, test_index):
                   path=cfg.test_models_path,
                   test=True)
 
-    tests = {"Agent": None, # maybe want to add agent epilson=1 for random
-            "TX 0 ON, Avg": ((1, 1), (0, 1)), 
-            "TX 1 ON, Avg": ((0, 1), (1, 1)), 
-            "Both ON, Avg": ((1, 1), (1, 1))}
-
     values = list(tests.items())
     if values[test_index][1] is None:
         test = None
     else:
         test = values[test_index][1]
-    e = values[test_index][0]
+    label = values[test_index][0]
+    e = 0 # episode zero, triggers timestamping
     
     avg_reward_per_test = 0.0 # need to change to not be per episode
     min_reward_per_test = 10000
@@ -62,7 +62,7 @@ def main(cfg, test_index):
     avg_se_per_test = 0.0
     avg_su_per_test = 0.0
             
-    logger.info(f"Starting test {test_index}.")
+    logger.info(f"Starting test {label}, {test_index}.")
     observation = env.reset(seed=cfg.random_seed) # deterministic
     while True:
         start = perf_counter()        
@@ -81,7 +81,7 @@ def main(cfg, test_index):
 
         logger.info(f"Reward: {reward}")
         observation = next_observation
-        env.render(episode=test_index) # rendering post action, images show end of round
+        # env.render(episode=test_index) 
 
         # Storing and plotting reward information
         avg_reward_per_test += reward / float(cfg.step_limit)
@@ -115,11 +115,38 @@ def main(cfg, test_index):
     logger.info(f"Avg se: {avg_se_per_test}")
     logger.info(f"Avg pe: {avg_pe_per_test}")
     logger.info(f"Avg su: {avg_su_per_test}")
-    logger.critical(f"Completed test. Exiting.")
+    logger.critical(f"Completed test. Saving and Exiting.")
+
+    results = {
+            "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "avg_throughput": avg_throughput_per_test,
+            "avg_fairness": avg_fairness_per_test,
+            "avg_se": avg_se_per_test,
+            "avg_pe": avg_pe_per_test,
+            "avg_su": avg_su_per_test,
+            "avg_reward": avg_reward_per_test.numpy(),
+            "min_reward": min_reward_per_test.numpy(),
+            "max_reward": max_reward_per_test.numpy(), 
+            "seed": cfg.random_seed,
+            "test_label": label,
+        }
+
+    # Convert to a single-row DataFrame
+    df = pd.DataFrame([results])
+
+    # Create aggregated results file
+    pathlib.Path(cfg.test_path).mkdir(parents=True, exist_ok=True)
+    # Write results to temp file to prevent partial writes etc when running in parallel
+    result_file_path = os.path.join(cfg.test_path, f"temp_seed{cfg.random_seed}_{label}.csv")
+    df.to_csv(result_file_path, index=False)
+
+    logger.critical(f"Appended results to {result_file_path}")
 
     return
 
 if __name__ == "__main__":
+    test_id = int(sys.argv[1])
+    seed = int(sys.argv[2])
     with initialize(version_base=None, config_path="Config", job_name=CONFIG_NAME):
         gpus = tf.config.list_physical_devices('GPU')
         logger.info(f'Number of GPUs available : {len(gpus)}')
@@ -132,6 +159,7 @@ if __name__ == "__main__":
             except RuntimeError as e:
                 logger.critical(e)
         config = compose(config_name=CONFIG_NAME)
+        config.random_seed = seed # overwriting random seed
         sionna.config.xla_compat=True
         sionna.config.seed=config.random_seed
         # Below all helps tensorflow determinism with the GPU
@@ -145,5 +173,4 @@ if __name__ == "__main__":
         np.random.seed(config.random_seed)        
         logger.info(f"Config:\n{config}\n")
 
-    test_id = int(sys.argv[1])
     main(config, test_id)

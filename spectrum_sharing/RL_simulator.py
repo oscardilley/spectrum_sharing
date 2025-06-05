@@ -132,6 +132,8 @@ class PrecomputedEnv(gym.Env):
         global_centre = self.sharingBand.center_transform
         self.global_max = (global_centre[0:2] + (self.sharingBand.global_size[0:2]  / 2)).astype(int)
         self.global_min = (global_centre[0:2] - (self.sharingBand.global_size[0:2]  / 2)).astype(int)
+        logger.warning(f"Global max: {self.global_max}")
+        logger.warning(f"Global min: {self.global_min}")
         primary_max_rates = sum([band.max_data_rate for band in self.primaryBands.values()])
         max_throughput = ((self.num_tx * self.sharingBand.max_data_rate) + primary_max_rates)
         max_se = max(max_throughput / (self.primary_bandwidth + self.sharing_bandwidth), primary_max_rates / self.primary_bandwidth)
@@ -193,6 +195,15 @@ class PrecomputedEnv(gym.Env):
         self.sharing_sinr_maps = np.clip(self.sharing_maps[0], a_min=self.cfg.min_sinr, a_max=self.cfg.max_sinr)
         self.sharing_bler_maps = self.sharing_maps[1]
 
+        # Important to check cell size being used matches between the precomputed and the scene
+        logger.info("Checking map alignment.")
+        logger.warning(f"Sharing band grid size: {self.sharingBand.grid.shape}")
+        logger.warning(f"Sharing band scene: {self.sharingBand.scene.size}")
+        logger.warning(f"Precomputed map size: {self.sharing_bler_maps.shape[-2:]}")
+        logger.warning(f"Cell size: {self.cfg.cell_size}")
+
+        self._check_map_alignment(self.cfg.cell_size, self.sharing_bler_maps.shape[-2:], self.sharingBand.grid.shape)
+    
         # Clearing up unnecessary Sionna components after they have been used for precalculation
         del self.primaryBands
         del self.sharingBand
@@ -481,6 +492,23 @@ class PrecomputedEnv(gym.Env):
         # Remove batch and channel dims
         return tf.squeeze(averaged, axis=[0, -1])  # shape: [H, W]
 
+    def _check_map_alignment(self, cell_size, bler_shape, grid_shape, tolerance=3.0):
+        """
+        Check if cell_size * bler_shape is approximately equal to grid_shape within a tolerance.
+        Raises and logs a critical error if not.
+        """
+        # Compute expected grid size from cell_size and bler_map shape
+        approx_grid_shape = np.array(bler_shape) * cell_size
+        grid_shape = np.array(grid_shape[-2:])  # Use last two dimensions in case it's 3D
+
+        if not np.allclose(approx_grid_shape, grid_shape, atol=tolerance):
+            logger.critical("Mismatch between precomputed map and grid shape.")
+            logger.critical(f"Expected grid (from cell_size * bler_shape): {approx_grid_shape}")
+            logger.critical(f"Actual grid shape: {grid_shape}")
+            raise ValueError("Grid shape mismatch with precomputed map dimensions.")
+        else:
+            logger.info(f"Passed alignment test with tolerance={tolerance}.")
+            return
 
     def _get_obs(self):
         """ 

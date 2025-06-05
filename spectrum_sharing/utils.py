@@ -7,71 +7,135 @@ Key utility functions for running simuations.
 import tensorflow as tf
 import numpy as np
 
-def update_users(grid, num_users, users, max_move=15):
+def update_users(grid, num_users, users):
     """
-    Update the positions and directions of users on a grid.
-
-    This function either initializes users with random valid positions on the grid
-    or updates their positions based on their current direction. It also generates
-    new valid movement directions for each user.
-
-    Parameters
-    ----------
-    grid : tf.Tensor
-        A 2D TensorFlow tensor representing the grid where users move.
-
-    num_users : int
-        The number of users to update or initialize.
-
-    users : dict
-        A dictionary containing user attributes. If empty, users are initialized.
-
-    max_move : int, optional
-        The maximum movement distance in any direction. Defaults to 2.
-
-    Returns
-    -------
-    users : dict
-        Updated dictionary of users with new positions and directions.
+    Update or initialize user positions on a grid with heterogeneous mobility.
+    Clustered user initialization and Levy-based movement are applied.
     """
-    y_max = grid.shape[0]
-    x_max = grid.shape[1]
+    y_max, x_max = grid.shape
     valid_indices = tf.where(grid)
-    
+
     if users == {}:
-        # Initialising users
-        random_ids = tf.random.uniform(shape=(num_users,), maxval=tf.shape(valid_indices)[0], dtype=tf.int32)
-        positions = tf.gather(valid_indices, random_ids) # random starting positions    
-        for ue in range(num_users):
-            attributes = {"color": [1,0,1], 
-                          "position": tf.concat([positions[ue], tf.constant([1], dtype=tf.int64)], axis=0), 
-                          "direction": None, 
-                          "buffer": 100,}
-            users[f"ue{ue}"] = attributes
-    
-    else:
-        # Adding the previously calculated and verified distance vectors to move existing users
-        for ue in range(num_users):
-            users[f"ue{ue}"]["position"] +=  users[f"ue{ue}"]["direction"] 
+        # --- Cluster setup ---
+        num_clusters = max(1, num_users // 5)
+        cluster_centers = tf.gather(valid_indices, tf.random.uniform((num_clusters,), maxval=tf.shape(valid_indices)[0], dtype=tf.int32))
+        cluster_assignments = tf.random.uniform((num_users,), maxval=num_clusters, dtype=tf.int32)
         
-    # Generating new valid direction values based on position
+        for ue in range(num_users):
+            # Each user picks a cluster center
+            base = cluster_centers[cluster_assignments[ue]]
+            offset = tf.random.uniform((2,), minval=-5, maxval=6, dtype=tf.int64)
+            pos = find_valid_position(grid, base + offset, max_radius=10)
+            
+            attributes = {
+                "color": [1, 0, 1],
+                "position": tf.concat([pos, tf.constant([1], dtype=tf.int64)], axis=0),
+                "direction": tf.constant([0, 0, 0], dtype=tf.int64),
+                "buffer": 100,
+                "type": "clustered" if ue < num_users * 0.7 else "random"
+            }
+            users[f"ue{ue}"] = attributes
+    else:
+        # --- Update positions based on directions ---
+        for ue in range(num_users):
+            users[f"ue{ue}"]["position"] += users[f"ue{ue}"]["direction"]
+
+    # --- Generate new directions based on Levy steps ---
     for ue in range(num_users):
         start = users[f"ue{ue}"]["position"]
+        user_type = users[f"ue{ue}"].get("type", "random")
+
         valid_move = False
-        while not valid_move:
-            move = tf.random.uniform(shape=(2,), minval=-1*max_move, maxval=max_move+1, dtype=tf.int64)
-            pos = start[0:2] + move
-            if pos[1] >= x_max or pos[1] < 0:
-                continue
-            elif pos[0] >= y_max or pos[0] < 0:
-                continue
-            elif not bool(tf.gather_nd(grid, pos)):
-                continue
-            else:
-                valid_move=True
-        users[f"ue{ue}"]["direction"] = tf.concat([move, tf.constant([0], dtype=tf.int64)], axis=0) 
+        attempts = 0
+        while not valid_move and attempts < 10:
+            step_size = tf.cast(levy_step(), tf.int64)
+            direction = tf.random.uniform((2,), minval=-1, maxval=2, dtype=tf.int64)
+
+            if user_type == "clustered":
+                # Smaller, more local moves
+                direction = tf.random.uniform((2,), minval=-2, maxval=3, dtype=tf.int64)
+                step_size = tf.minimum(step_size, 5)
+
+            move = step_size * direction
+            pos = start[:2] + move
+
+            if (0 <= pos[0] < y_max and 0 <= pos[1] < x_max and bool(tf.gather_nd(grid, pos))):
+                valid_move = True
+            attempts += 1
+
+        if not valid_move:
+            move = tf.constant([0, 0], dtype=tf.int64)
+
+        users[f"ue{ue}"]["direction"] = tf.concat([move, tf.constant([0], dtype=tf.int64)], axis=0)
 
     return users
+
+
+# def update_users(grid, num_users, users, max_move=15):
+#     """
+#     Update the positions and directions of users on a grid.
+
+#     This function either initializes users with random valid positions on the grid
+#     or updates their positions based on their current direction. It also generates
+#     new valid movement directions for each user.
+
+#     Parameters
+#     ----------
+#     grid : tf.Tensor
+#         A 2D TensorFlow tensor representing the grid where users move.
+
+#     num_users : int
+#         The number of users to update or initialize.
+
+#     users : dict
+#         A dictionary containing user attributes. If empty, users are initialized.
+
+#     max_move : int, optional
+#         The maximum movement distance in any direction. Defaults to 2.
+
+#     Returns
+#     -------
+#     users : dict
+#         Updated dictionary of users with new positions and directions.
+#     """
+#     y_max = grid.shape[0]
+#     x_max = grid.shape[1]
+#     valid_indices = tf.where(grid)
+    
+#     if users == {}:
+#         # Initialising users
+#         random_ids = tf.random.uniform(shape=(num_users,), maxval=tf.shape(valid_indices)[0], dtype=tf.int32)
+#         positions = tf.gather(valid_indices, random_ids) # random starting positions    
+#         for ue in range(num_users):
+#             attributes = {"color": [1,0,1], 
+#                           "position": tf.concat([positions[ue], tf.constant([1], dtype=tf.int64)], axis=0), 
+#                           "direction": None, 
+#                           "buffer": 100,}
+#             users[f"ue{ue}"] = attributes
+    
+#     else:
+#         # Adding the previously calculated and verified distance vectors to move existing users
+#         for ue in range(num_users):
+#             users[f"ue{ue}"]["position"] +=  users[f"ue{ue}"]["direction"] 
+        
+#     # Generating new valid direction values based on position
+#     for ue in range(num_users):
+#         start = users[f"ue{ue}"]["position"]
+#         valid_move = False
+#         while not valid_move:
+#             move = tf.random.uniform(shape=(2,), minval=-1*max_move, maxval=max_move+1, dtype=tf.int64)
+#             pos = start[0:2] + move
+#             if pos[1] >= x_max or pos[1] < 0:
+#                 continue
+#             elif pos[0] >= y_max or pos[0] < 0:
+#                 continue
+#             elif not bool(tf.gather_nd(grid, pos)):
+#                 continue
+#             else:
+#                 valid_move=True
+#         users[f"ue{ue}"]["direction"] = tf.concat([move, tf.constant([0], dtype=tf.int64)], axis=0) 
+
+#     return users
 
 
 def levy_step():
@@ -90,7 +154,7 @@ def levy_step():
     v = tf.random.normal(shape=(), mean=0, stddev=1)
     step = u / tf.abs(v)**(1/2)
     # Scale to get movements between 1-5 grid spaces
-    step = 5.0 + (step * 3.0)  # Center around 3 with ±2 variation
+    step = 10.0 + (step * 5.0)  # Center around 10 with ±3 variation
     return tf.clip_by_value(step, 1.0, 15.0)
 
 def find_valid_position(grid, base_pos, max_radius=None):
