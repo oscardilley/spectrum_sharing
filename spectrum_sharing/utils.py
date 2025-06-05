@@ -17,7 +17,7 @@ def update_users(grid, num_users, users):
 
     if users == {}:
         # --- Cluster setup ---
-        num_clusters = max(1, num_users // 5)
+        num_clusters = max(1, num_users // 6)
         cluster_centers = tf.gather(valid_indices, tf.random.uniform((num_clusters,), maxval=tf.shape(valid_indices)[0], dtype=tf.int32))
         cluster_assignments = tf.random.uniform((num_users,), maxval=num_clusters, dtype=tf.int32)
         

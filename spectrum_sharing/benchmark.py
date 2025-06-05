@@ -3,7 +3,7 @@
 Script to test RL model with zero exploration against baseline scenarios. 
 Runs a single episode deterministically. Needs to be separated for repeatability.
 
-Run as module: python3 -m spectrum_sharing.benchmark <test_index>
+Run as module: python3 -m spectrum_sharing.benchmark <test_index> <seed>
 
 """
 
