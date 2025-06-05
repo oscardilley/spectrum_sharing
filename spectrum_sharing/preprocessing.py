@@ -4,6 +4,7 @@ Pre-compute and save SINR, BER and BLER maps. Must be run as a module: python3 -
 
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2' # INFO and WARNING not displayed
+os.environ["CUDA_VISIBLE_DEVICES"] = "1"
 import tensorflow as tf
 import sionna
 from hydra import compose, initialize 
@@ -32,8 +33,8 @@ def main(cfg):
     primary_bandwidth = cfg.primary_fft_size * cfg.primary_subcarrier_spacing
     sharing_bandwidth = cfg.primary_fft_size * cfg.primary_subcarrier_spacing
     users = {}
-    primary_maps_filename = "primary_maps.npy"
-    sharing_maps_filename = "sharing_maps.npy"
+    primary_maps_filename = "primary_maps"
+    sharing_maps_filename = "sharing_maps"
     grid_filename = "grid.npy"
 
     # Generating the possible states
@@ -355,7 +356,7 @@ if __name__ == "__main__":
     gpus = tf.config.list_physical_devices('GPU')
     logger.info(f'Number of GPUs available : {len(gpus)}')
     if gpus:
-        gpu_num = 0 # Index of the GPU to be used
+        gpu_num = 0 # visibility set at environment level so only select first index
         try:
             tf.config.set_visible_devices(gpus[gpu_num], 'GPU')
             logger.warning(f'Only GPU number {gpu_num} used.')

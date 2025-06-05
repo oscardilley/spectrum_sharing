@@ -12,8 +12,8 @@ test_images_path: "/home/ubuntu/spectrum_sharing_v0/spectrum_sharing/Tests/"
 log_path: "/home/ubuntu/spectrum_sharing_v0/spectrum_sharing/Logging/"
 models_path: "/home/ubuntu/spectrum_sharing_v0/spectrum_sharing/Models/"
 buffer_path: "/home/ubuntu/spectrum_sharing_v0/spectrum_sharing/Buffer/"
-test_models_path: "/home/ubuntu/spectrum_sharing_v0/spectrum_sharing/TestModels/"
-scene_path: "/home/ubuntu/spectrum_sharing_v0/spectrum_sharing/Scene/BRISTOL_3/"
+test_models_path: "/home/ubuntu/spectrum_sharing_v0/spectrum_sharing/TestModels/precomp_sim4_20250530_110701_model"
+scene_path: "/home/ubuntu/spectrum_sharing_v0/spectrum_sharing/Scene/BRISTOL_3/" # possible scene size error in this version
 results_path: "/home/ubuntu/spectrum_sharing_v0/spectrum_sharing/Results/"
 
 # Scene and Sionna
