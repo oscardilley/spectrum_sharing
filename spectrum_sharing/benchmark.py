@@ -22,7 +22,7 @@ from spectrum_sharing.RL_simulator import SionnaEnv, PrecomputedEnv
 from spectrum_sharing.DQN_agent import Agent
 from spectrum_sharing.logger import logger
 
-CONFIG_NAME = "simulation5" # the only config selection in the script
+CONFIG_NAME = "simulation6" # the only config selection in the script
 
 tests = {"Agent": None, 
         "TX 0 ON, Avg": ((1, 1), (0, 1)), 

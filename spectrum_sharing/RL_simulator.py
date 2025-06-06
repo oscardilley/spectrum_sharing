@@ -170,6 +170,8 @@ class PrecomputedEnv(gym.Env):
                            "su": (0, math.ceil(max_su)),
                            "sinr": (math.floor(self.cfg.min_sinr), math.ceil(self.cfg.max_sinr))} 
         
+        logger.info(f"Norm ranges: {self.norm_ranges}")
+        
         # Loading the precomputed maps
         try:
             self.primary_maps = np.load(self.cfg.assets_path + "primary_maps.npy")
