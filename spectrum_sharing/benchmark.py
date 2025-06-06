@@ -3,7 +3,7 @@
 Script to test RL model with zero exploration against baseline scenarios. 
 Runs a single episode deterministically. Needs to be separated for repeatability.
 
-Run as module: python3 -m spectrum_sharing.benchmark <test_index>
+Run as module: python3 -m spectrum_sharing.benchmark <test_index> <seed>
 
 """
 
@@ -22,7 +22,7 @@ from spectrum_sharing.RL_simulator import SionnaEnv, PrecomputedEnv
 from spectrum_sharing.DQN_agent import Agent
 from spectrum_sharing.logger import logger
 
-CONFIG_NAME = "simulation5" # the only config selection in the script
+CONFIG_NAME = "simulation6" # the only config selection in the script
 
 tests = {"Agent": None, 
         "TX 0 ON, Avg": ((1, 1), (0, 1)), 

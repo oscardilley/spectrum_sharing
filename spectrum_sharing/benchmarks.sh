@@ -19,7 +19,7 @@ run_batch() {
 }
 
 # Usage for different random seeds
-for j in {40..45}; do
+for j in {0..45}; do
     echo "Running batch for random seed $j"
     run_batch $j
     echo "Merging CSVs for seed $j"

@@ -24,7 +24,7 @@ from spectrum_sharing.DQN_agent import Agent, ReplayBuffer
 from spectrum_sharing.logger import logger
 from spectrum_sharing.plotting import plot_total_rewards
 
-CONFIG_NAME = "simulation5" # the only config selection in the script
+CONFIG_NAME = "simulation6" # the only config selection in the script
 
 def main(cfg):
     """Run the simulator."""
