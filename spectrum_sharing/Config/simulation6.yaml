@@ -6,17 +6,17 @@ random_seed: 56
 
 # General
 max_results_length: 10 # for plotting
-assets_path: "/home/ubuntu/spectrum_sharing_v0/spectrum_sharing/Assets/"
-images_path: "/home/ubuntu/spectrum_sharing_v0/spectrum_sharing/Simulations/"
-test_images_path: "/home/ubuntu/spectrum_sharing_v0/spectrum_sharing/Tests/Images/"
-test_path: "/home/ubuntu/spectrum_sharing_v0/spectrum_sharing/Tests/"
-log_path: "/home/ubuntu/spectrum_sharing_v0/spectrum_sharing/Logging/"
-models_path: "/home/ubuntu/spectrum_sharing_v0/spectrum_sharing/Models/"
-buffer_path: "/home/ubuntu/spectrum_sharing_v0/spectrum_sharing/Buffer/"
-test_models_path: "/home/ubuntu/spectrum_sharing_v0/spectrum_sharing/TestModels/precomp_sim6_20250606_100924_model"
-scene_path: "/home/ubuntu/spectrum_sharing_v0/spectrum_sharing/Scene/BRISTOL_2_DEMO/" # for compatability with demo shapes
+assets_path: "/home/ubuntu/spectrum_sharing/spectrum_sharing/Assets/"
+images_path: "/home/ubuntu/spectrum_sharing/spectrum_sharing/Simulations/"
+test_images_path: "/home/ubuntu/spectrum_sharing/spectrum_sharing/Tests/Images/"
+test_path: "/home/ubuntu/spectrum_sharing/spectrum_sharing/Tests/"
+log_path: "/home/ubuntu/spectrum_sharing/spectrum_sharing/Logging/"
+models_path: "/home/ubuntu/spectrum_sharing/spectrum_sharing/Models/"
+buffer_path: "/home/ubuntu/spectrum_sharing/spectrum_sharing/Buffer/"
+test_models_path: "/home/ubuntu/spectrum_sharing/spectrum_sharing/TestModels/precomp_sim6_20250606_100924_model"
+scene_path: "/home/ubuntu/spectrum_sharing/spectrum_sharing/Scene/BRISTOL_2_DEMO/" # for compatability with demo shapes
 # scene_path: "/home/ubuntu/spectrum_sharing_v0/spectrum_sharing/Scene/BRISTOL_3/"
-results_path: "/home/ubuntu/spectrum_sharing_v0/spectrum_sharing/Results/"
+results_path: "/home/ubuntu/spectrum_sharing/spectrum_sharing/Results/"
 
 # Scene and Sionna
 num_rx: 20
@@ -55,10 +55,10 @@ transmitters:
         direction: [0, 0, 0]
         orientation: [0, 0, 0]
         color: [1, 0, 0]
-        primary_power: 17.0
-        sharing_power: 19.0
-        min_power: 15.0
-        max_power: 23.0
+        primary_power: 25.0
+        sharing_power: 25.0
+        min_power: 20.0
+        max_power: 30.0
         state: 0
         look_at: [10, -50, 10]
         mu_pa: 0.4

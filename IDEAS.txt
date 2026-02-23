@@ -1,0 +1,11 @@
+Next steps:
+
+Then rehash the RL to be much more efficient, just indexing and learning quickly
+
+Then see what errors we get
+
+Need to save better the states so we can add on
+
+Upgrade to Sionna 1.2 to get increased speed and reliability
+
+Compute lots of coverage maps and then use the RL in the space 

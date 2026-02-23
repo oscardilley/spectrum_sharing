@@ -12,15 +12,15 @@ mcs:
 
 # General
 max_results_length: 10 # for plotting
-assets_path: "/home/ubuntu/spectrum_sharing_v0/spectrum_sharing/Assets/"
-images_path: "/home/ubuntu/spectrum_sharing_v0/spectrum_sharing/Simulations/"
-test_images_path: "/home/ubuntu/spectrum_sharing_v0/spectrum_sharing/Tests/"
-log_path: "/home/ubuntu/spectrum_sharing_v0/spectrum_sharing/Logging/"
-models_path: "/home/ubuntu/spectrum_sharing_v0/spectrum_sharing/Models/"
-buffer_path: "/home/ubuntu/spectrum_sharing_v0/spectrum_sharing/Buffer/"
-test_models_path: "/home/ubuntu/spectrum_sharing_v0/spectrum_sharing/TestModels/"
-scene_path: "/home/ubuntu/spectrum_sharing_v0/spectrum_sharing/Scene/BRISTOL_3/"
-results_path: "/home/ubuntu/spectrum_sharing_v0/spectrum_sharing/Results/"
+assets_path: "/home/ubuntu/spectrum_sharing/spectrum_sharing/Assets/"
+images_path: "/home/ubuntu/spectrum_sharing/spectrum_sharing/Simulations/"
+test_images_path: "/home/ubuntu/spectrum_sharing/spectrum_sharing/Tests/"
+log_path: "/home/ubuntu/spectrum_sharing/spectrum_sharing/Logging/"
+models_path: "/home/ubuntu/spectrum_sharing/spectrum_sharing/Models/"
+buffer_path: "/home/ubuntu/spectrum_sharing/spectrum_sharing/Buffer/"
+test_models_path: "/home/ubuntu/spectrum_sharing/spectrum_sharing/TestModels/"
+scene_path: "/home/ubuntu/spectrum_sharing/spectrum_sharing/Scene/BRISTOL_3/"
+results_path: "/home/ubuntu/spectrum_sharing/spectrum_sharing/Results/"
 
 # Scene and Sionna
 num_rx: 5

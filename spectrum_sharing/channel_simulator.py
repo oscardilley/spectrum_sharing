@@ -108,6 +108,7 @@ class ChannelSimulator(tf.keras.Model):
     def iterate(self, ins):
         h, noise = ins
         h = tf.repeat(h, repeats=self.x.shape[0], axis=0)
+        noise = tf.cast(noise, tf.float32)
         y = self.channel([self.x, h, noise])
         b_hat = self.pusch_receiver([y, h, noise]) # for perfect channel estimation
         # b_hat = self.pusch_receiver([y, noise]) # swap to thisand change receiver for imperfect estimation
