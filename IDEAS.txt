@@ -1,11 +1,16 @@
 Next steps:
 
-Then rehash the RL to be much more efficient, just indexing and learning quickly
+Oscar:
 
-Then see what errors we get
+- Link level BER/BLER simulation - how many blocks are we simulating - preprocessing config ->batch_size might be it
 
-Need to save better the states so we can add on
+- We might want to reduce cell size to 1 for final paper version, for debugging 4/8 works
 
-Upgrade to Sionna 1.2 to get increased speed and reliability
+- I think I put average in around the pixels - need to check smoothing
 
-Compute lots of coverage maps and then use the RL in the space 
+
+Zhaozhou:
+
+- 
+
+

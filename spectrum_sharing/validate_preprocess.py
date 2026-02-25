@@ -14,9 +14,11 @@ def main(cfg):
     """
     # Configuration to change
     TEST_FILE = cfg.assets_path + f"primary_maps.npy" # edit this
-    primary=True # True for shape [SINR/BLER/BER, tx_id, y, x] and False for shape [SINR/BLER/BER, i, tx_id, y, x]
+    TEST_FILE = cfg.assets_path + f"OldMaps/temp 130.npy" # edit this
+    primary=False # True for shape [SINR/BLER/BER, tx_id, y, x] and False for shape [SINR/BLER/BER, i, tx_id, y, x]
 
     map = np.load(TEST_FILE)
+    print(map.shape)
     if primary:
         for tx_id in range(len(cfg.transmitters)):
             plot_coverage_map(np.clip(map[0,tx_id,:,:],-100,100), cfg.assets_path + "Maps/" + f"Primary SINR test tx {tx_id}") # sinr
