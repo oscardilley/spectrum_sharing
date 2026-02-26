@@ -255,9 +255,8 @@ def main(cfg):
                     if (slice_id % 5 == 0) or (slice_id == len(slices) - 1):
                             logger.info("Plotting sharing.")
                             for tx_id in range(num_tx):
-                                plot_coverage_map(sinrs[id,tx_id,:,:], cfg.maps_path,
-                                                   title=f"SINRs map for Transmitter {tx_id} MCS {mcs} sharing power {tx_powers[tx_id]}", cmap="viridis")
-                                plot_coverage_map(blers[id,tx_id,:,:], cfg.maps_path, title=f"BLERs map for Transmitter {tx_id} MCS {mcs} sharing power {tx_powers[tx_id]}", plot_min=0, plot_max=1, cmap="inferno_r")
+                                plot_coverage_map(sinrs[id,tx_id,:,:], cfg.maps_path, title=f"SINRs map for Transmitter {tx_id} MCS {mcs} sharing power {tx_powers[:]}", cmap="viridis")
+                                plot_coverage_map(blers[id,tx_id,:,:], cfg.maps_path, title=f"BLERs map for Transmitter {tx_id} MCS {mcs} sharing power {tx_powers[:]}", plot_min=0, plot_max=1, cmap="inferno_r")
                                 # plot_coverage_map(bers[id,tx_id,:,:], cfg.maps_path, title=f"BERs map for Transmitter {id} MCS {mcs} sharing {tx_id}", plot_min=0, plot_max=1, cmap="inferno_r")
                     # counter = 0
                     # for tx_id in range(num_tx):
