@@ -95,8 +95,7 @@ def main(cfg):
                     users_list = list(users.items())
                     slices = chunk_list(users_list, cfg.num_slices)
 
-                # if not os.path.exists(cfg.assets_path + primary_maps_filename + mcs_str):
-                if False:
+                if not os.path.exists(cfg.assets_path + primary_maps_filename + mcs_str):
                     logger.info("Processing primary maps.")
 
                     for slice_id, slice in enumerate(slices): 
@@ -144,11 +143,11 @@ def main(cfg):
 
                         del output
                         
-                        # if (slice_id % 5 == 0) or (slice_id == len(slices) - 1):
-                        #     logger.info("Plotting.")
-                        #     plot_coverage_map(sinrs[id,:,:], cfg.maps_path, title=f"SINRs map for Transmitter {id} MCS {mcs}", cmap="viridis")
-                        #     plot_coverage_map(blers[id,:,:], cfg.maps_path, title=f"BLERs map for Transmitter {id} MCS {mcs}", plot_min=0, plot_max=1, cmap="inferno_r")
-                        #     plot_coverage_map(bers[id,:,:], cfg.maps_path, title=f"BERs map for Transmitter {id} MCS {mcs}", plot_min=0, plot_max=1, cmap="inferno_r")
+                        if (slice_id % 5 == 0) or (slice_id == len(slices) - 1):
+                            logger.info("Plotting.")
+                            plot_coverage_map(sinrs[id,:,:], cfg.maps_path, title=f"SINRs map for Transmitter {id} MCS {mcs}", cmap="viridis")
+                            plot_coverage_map(blers[id,:,:], cfg.maps_path, title=f"BLERs map for Transmitter {id} MCS {mcs}", plot_min=0, plot_max=1, cmap="inferno_r")
+                            plot_coverage_map(bers[id,:,:], cfg.maps_path, title=f"BERs map for Transmitter {id} MCS {mcs}", plot_min=0, plot_max=1, cmap="inferno_r")
 
                         end = perf_counter()
                         time = end - start
