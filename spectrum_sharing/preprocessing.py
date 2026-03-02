@@ -42,9 +42,11 @@ def main(cfg):
         logger.info("Generating the possible states.")
         powers = [[0] for _ in range(num_tx)]
         for id, tx in enumerate(transmitters.values()):
-            powers[id] = powers[id] + list(range(int(tx["min_power"]), int(tx["max_power"]) + 1))
+            powers[id] = powers[id] + list(range(int(tx["min_power"]), int(tx["max_power"]) + 1, 4)) # step of 4 dB to reduce the number of combinations, can be changed
         powers = list(product(*[powers[id] for id in range(num_tx)])) # all possible combinations of powers
         mcs = None
+        for power in powers:
+            logger.info(f"Tx power state: {power}")
 
         # ------------------------------------------------------------------------------------------------------------------------------------------
         # Primary bands processing
@@ -96,6 +98,7 @@ def main(cfg):
                     slices = chunk_list(users_list, cfg.num_slices)
 
                 if not os.path.exists(cfg.assets_path + primary_maps_filename + mcs_str):
+                # if not True: # for testing
                     logger.info("Processing primary maps.")
 
                     for slice_id, slice in enumerate(slices): 
@@ -145,9 +148,9 @@ def main(cfg):
                         
                         if (slice_id % 5 == 0) or (slice_id == len(slices) - 1):
                             logger.info("Plotting.")
-                            plot_coverage_map(sinrs[id,:,:], cfg.maps_path, title=f"SNRs_map_for_Transmitter_{id}_MCS_{mcs}", cmap="viridis")
-                            plot_coverage_map(blers[id,:,:], cfg.maps_path, title=f"BLERs_map_for_Transmitter_{id}_MCS_{mcs}", plot_min=0, plot_max=1, cmap="inferno_r")
-                            plot_coverage_map(bers[id,:,:], cfg.maps_path, title=f"BERs_map_for_Transmitter_{id}_MCS_{mcs}", plot_min=0, plot_max=1, cmap="inferno_r")
+                            plot_coverage_map(sinrs[id,:,:], cfg.maps_path, title=f"SNRs_map_for_Transmitter_{id}_MCS_14", cmap="viridis")
+                            plot_coverage_map(blers[id,:,:], cfg.maps_path, title=f"BLERs_map_for_Transmitter_{id}_MCS_14", plot_min=0, plot_max=1, cmap="inferno_r")
+                            plot_coverage_map(bers[id,:,:], cfg.maps_path, title=f"BERs_map_for_Transmitter_{id}_MCS_14", plot_min=0, plot_max=1, cmap="inferno_r")
 
                         end = perf_counter()
                         time = end - start
@@ -241,22 +244,22 @@ def main(cfg):
                     sharingBand.receivers = None # clearing the previous receivers forces an update
 
                     users_slice = dict(slice)
-                    output = sharingBand(users_slice, state, transmitters, mcs=None) # not using rate, calculate in the loop
+                    output = sharingBand(users_slice, state, transmitters, mcs=mcs) # not using rate, calculate in the loop
                     logger.info("Completed slice.")
 
                     for tx_id in range(num_tx):
-                        for user, sinr, bler in zip(users_slice.values(), output["sinr"][tx_id].numpy(), output["bler"][tx_id].numpy()):
+                        for user, sinr, bler, ber in zip(users_slice.values(), output["sinr"][tx_id].numpy(), output["bler"][tx_id].numpy(), output["ber"][tx_id].numpy()):
                             y,x = user["position"][0], user["position"][1]
                             sinrs[id,tx_id,y,x] = sinr
                             blers[id,tx_id,y,x] = bler
-                            # bers[id,tx_id,y,x] = ber
+                            bers[id,tx_id,y,x] = ber
 
                     if (slice_id % 5 == 0) or (slice_id == len(slices) - 1):
                             logger.info("Plotting sharing.")
                             for tx_id in range(num_tx):
-                                plot_coverage_map(sinrs[id,tx_id,:,:], cfg.maps_path, title=f"SINRs_map_for_Transmitter_{tx_id}_MCS_{mcs}_sharing_power_{tx_powers[:]}", cmap="viridis")
-                                plot_coverage_map(blers[id,tx_id,:,:], cfg.maps_path, title=f"BLERs_map_for Transmitter_{tx_id}_MCS_{mcs}_sharing_power_{tx_powers[:]}", plot_min=0, plot_max=1, cmap="inferno_r")
-                                # plot_coverage_map(bers[id,tx_id,:,:], cfg.maps_path, title=f"BERs map for Transmitter {id} MCS {mcs} sharing {tx_id}", plot_min=0, plot_max=1, cmap="inferno_r")
+                                plot_coverage_map(sinrs[id,tx_id,:,:], cfg.maps_path, title=f"SINRs_map_for_Transmitter_{tx_id}_MCS_14_sharing_power_{tx_powers[:]}", cmap="viridis")
+                                plot_coverage_map(blers[id,tx_id,:,:], cfg.maps_path, title=f"BLERs_map_for_Transmitter_{tx_id}_MCS_14_sharing_power_{tx_powers[:]}", plot_min=0, plot_max=1, cmap="inferno_r")
+                                plot_coverage_map(bers[id,tx_id,:,:], cfg.maps_path, title=f"BERs_map_for_Transmitter_{tx_id}_MCS_14_sharing_power_{tx_powers[:]}", plot_min=0, plot_max=1, cmap="inferno_r")
                     # counter = 0
                     # for tx_id in range(num_tx):
                     #     if bool(state[tx_id].numpy()) is True:
@@ -276,7 +279,7 @@ def main(cfg):
                     logger.info(f"Slice took : {time}")
 
                 sharing_maps_temp = np.stack([sinrs, blers, bers], axis=0).astype(np.float16) # save as float 16 ()
-                np.save(cfg.maps_path + f"sharing_maps_filename_mcs_{mcs}_{tx_powers[0]}_{tx_powers[1]}", sharing_maps_temp)
+                np.save(cfg.maps_path + f"sharing_maps_filename_mcs_14_{tx_powers[0]}_{tx_powers[1]}", sharing_maps_temp)
 
                 tf.keras.backend.clear_session()
                 if hasattr(sharingBand, 'simulator') and hasattr(sharingBand.simulator, 'h_freq'):

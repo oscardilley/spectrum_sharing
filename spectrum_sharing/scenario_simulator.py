@@ -285,7 +285,8 @@ class FullSimulator:
                 blers.append(tf.ones(self.num_rx, dtype=tf.float64))
                 sinrs.append(tf.constant(self.cfg.min_sinr, shape=(self.num_rx), dtype=tf.float32))
                 rates.append(tf.zeros(shape=(self.num_rx), dtype=tf.float32))
-            results = {"bler": tf.stack(blers), "sinr": tf.stack(sinrs), "rate": tf.stack(rates)}
+                bers.append(tf.ones(self.num_rx, dtype=tf.float64))  # Add BERs as 1 for all users when no transmitters are active
+            results = {"bler": tf.stack(blers), "sinr": tf.stack(sinrs), "rate": tf.stack(rates), "ber": tf.stack(bers)}
         
             return results
 
