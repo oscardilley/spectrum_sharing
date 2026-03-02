@@ -145,9 +145,9 @@ def main(cfg):
                         
                         if (slice_id % 5 == 0) or (slice_id == len(slices) - 1):
                             logger.info("Plotting.")
-                            plot_coverage_map(sinrs[id,:,:], cfg.maps_path, title=f"SINRs map for Transmitter {id} MCS {mcs}", cmap="viridis")
-                            plot_coverage_map(blers[id,:,:], cfg.maps_path, title=f"BLERs map for Transmitter {id} MCS {mcs}", plot_min=0, plot_max=1, cmap="inferno_r")
-                            plot_coverage_map(bers[id,:,:], cfg.maps_path, title=f"BERs map for Transmitter {id} MCS {mcs}", plot_min=0, plot_max=1, cmap="inferno_r")
+                            plot_coverage_map(sinrs[id,:,:], cfg.maps_path, title=f"SNRs_map_for_Transmitter_{id}_MCS_{mcs}", cmap="viridis")
+                            plot_coverage_map(blers[id,:,:], cfg.maps_path, title=f"BLERs_map_for_Transmitter_{id}_MCS_{mcs}", plot_min=0, plot_max=1, cmap="inferno_r")
+                            plot_coverage_map(bers[id,:,:], cfg.maps_path, title=f"BERs_map_for_Transmitter_{id}_MCS_{mcs}", plot_min=0, plot_max=1, cmap="inferno_r")
 
                         end = perf_counter()
                         time = end - start
@@ -254,8 +254,8 @@ def main(cfg):
                     if (slice_id % 5 == 0) or (slice_id == len(slices) - 1):
                             logger.info("Plotting sharing.")
                             for tx_id in range(num_tx):
-                                plot_coverage_map(sinrs[id,tx_id,:,:], cfg.maps_path, title=f"SINRs map for Transmitter {tx_id} MCS {mcs} sharing power {tx_powers[:]}", cmap="viridis")
-                                plot_coverage_map(blers[id,tx_id,:,:], cfg.maps_path, title=f"BLERs map for Transmitter {tx_id} MCS {mcs} sharing power {tx_powers[:]}", plot_min=0, plot_max=1, cmap="inferno_r")
+                                plot_coverage_map(sinrs[id,tx_id,:,:], cfg.maps_path, title=f"SINRs_map_for_Transmitter_{tx_id}_MCS_{mcs}_sharing_power_{tx_powers[:]}", cmap="viridis")
+                                plot_coverage_map(blers[id,tx_id,:,:], cfg.maps_path, title=f"BLERs_map_for Transmitter_{tx_id}_MCS_{mcs}_sharing_power_{tx_powers[:]}", plot_min=0, plot_max=1, cmap="inferno_r")
                                 # plot_coverage_map(bers[id,tx_id,:,:], cfg.maps_path, title=f"BERs map for Transmitter {id} MCS {mcs} sharing {tx_id}", plot_min=0, plot_max=1, cmap="inferno_r")
                     # counter = 0
                     # for tx_id in range(num_tx):
@@ -276,7 +276,7 @@ def main(cfg):
                     logger.info(f"Slice took : {time}")
 
                 sharing_maps_temp = np.stack([sinrs, blers, bers], axis=0).astype(np.float16) # save as float 16 ()
-                np.save(cfg.maps_path + f"temp {id}", sharing_maps_temp)
+                np.save(cfg.maps_path + f"sharing_maps_filename_mcs_{mcs}_{tx_powers[0]}_{tx_powers[1]}", sharing_maps_temp)
 
                 tf.keras.backend.clear_session()
                 if hasattr(sharingBand, 'simulator') and hasattr(sharingBand.simulator, 'h_freq'):
@@ -285,9 +285,9 @@ def main(cfg):
                 gc.collect()
 
             logger.info(f"Saving arrays of shapes:\n\tSINR: {sinrs.shape}\n\tBLER: {blers.shape}\n\tBER: {bers.shape}")  
-            logger.warning(f"Saving primary maps at {cfg.maps_path + sharing_maps_filename}.")
+            logger.warning(f"Saving sharing data at {cfg.assets_path + sharing_maps_filename}.")
             sharing_maps = np.stack([sinrs, blers, bers], axis=0).astype(np.float16) # save as float 16 ()
-            np.save(cfg.maps_path + sharing_maps_filename, sharing_maps)
+            np.save(cfg.assets_path + sharing_maps_filename, sharing_maps)
         
         else:
             logger.warning("Skipping sharing maps computation. File already exists.")
