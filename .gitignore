@@ -1,7 +1,9 @@
 # Large files
 logging/*
 Assets/*
-spectrum_sharing/Assets/*
+# spectrum_sharing/Assets/*
+spectrum_sharing/Assets/OldMaps
+spectrum_sharing/Assets/WrongPowers
 spectrum_sharing/Simulations/*
 Buffer/*
 spectrum_sharing/Buffer/*
