@@ -42,7 +42,7 @@ def main(cfg):
         logger.info("Generating the possible states.")
         powers = [[0] for _ in range(num_tx)]
         for id, tx in enumerate(transmitters.values()):
-            powers[id] = powers[id] + list(range(int(tx["min_power"]), int(tx["max_power"]) + 1, 4)) # step of 4 dB to reduce the number of combinations, can be changed
+            powers[id] = powers[id] + list(range(int(tx["min_power"]), int(tx["max_power"]) + 1, cfg.power_step)) # step of 4 dB to reduce the number of combinations, can be changed
         powers = list(product(*[powers[id] for id in range(num_tx)])) # all possible combinations of powers
         mcs = None
         for power in powers:

@@ -221,7 +221,8 @@ class Agent:
                          valid_mask[id] = 0 # power is only allowed to stay the same if turning transmitter off
                          continue
                     power = round((float(observation[tx_id]["tx_power"][0]) * (self.cfg.max_power - self.cfg.min_power)) + self.cfg.min_power) # denormalising
-                    if (tx[1] == 2 and power == self.transmitters[f"tx{tx_id}"]["max_power"]) or (tx[1] == 0 and power == self.transmitters[f"tx{tx_id}"]["min_power"]):
+                    tx_valid_powers = list(range(int(self.transmitters[f"tx{tx_id}"]["min_power"]), int(self.transmitters[f"tx{tx_id}"]["max_power"]) + 1, self.cfg.power_step)) # must match preprocessing.py step
+                    if (tx[1] == 2 and power >= tx_valid_powers[-1]) or (tx[1] == 0 and power <= tx_valid_powers[0]):
                         valid_mask[id] = 0 # do not increase or decrease power beyond transmitter limit
                         continue
                 else:

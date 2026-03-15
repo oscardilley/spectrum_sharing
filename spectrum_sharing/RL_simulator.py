@@ -83,7 +83,7 @@ class PrecomputedEnv(gym.Env):
         # Creating an array of all of the different power options.
         powers = [[0] for _ in range(self.num_tx)]
         for id, tx in enumerate(self.transmitters.values()):
-            powers[id] = powers[id] + list(range(int(tx["min_power"]), int(tx["max_power"]) + 1))
+            powers[id] = powers[id] + list(range(int(tx["min_power"]), int(tx["max_power"]) + 1, cfg.power_step)) # step of 4 dB must match preprocessing.py
         self.powers = list(product(*[powers[id] for id in range(self.num_tx)])) # all possible combinations of powers
 
         initial_action = self.possible_actions[np.random.randint(0,self.num_actions)] 
@@ -204,7 +204,8 @@ class PrecomputedEnv(gym.Env):
         logger.warning(f"Precomputed map size: {self.sharing_bler_maps.shape[-2:]}")
         logger.warning(f"Cell size: {self.cfg.cell_size}")
 
-        self._check_map_alignment(self.cfg.cell_size, self.sharing_bler_maps.shape[-2:], self.sharingBand.grid.shape)
+        # self._check_map_alignment(self.cfg.cell_size, self.sharing_bler_maps.shape[-2:], self.sharingBand.grid.shape)
+        self._check_map_alignment(self.cfg.cell_size, self.sharing_bler_maps.shape[-2:], self.sharingBand.scene.size) # I think this may never have been correct
     
         # Clearing up unnecessary Sionna components after they have been used for precalculation
         del self.primaryBands
@@ -288,10 +289,14 @@ class PrecomputedEnv(gym.Env):
         # Mapping the effect of the action to the state via search and alignment
         for id, a in enumerate(action):
             self.transmitters[f"tx{id}"]["state"] = int(a[0]) # apply the state
-            if a[1] == 0: # reduce power, action mask should protect from exceeding valid actions
-                self.transmitters[f"tx{id}"]["sharing_power"] -= 1
+            tx = self.transmitters[f"tx{id}"]
+            valid_tx_powers = list(range(int(tx["min_power"]), int(tx["max_power"]) + 1, self.cfg.power_step)) # must match preprocessing.py step
+            min_valid_power = float(valid_tx_powers[0])
+            max_valid_power = float(valid_tx_powers[-1])
+            if a[1] == 0: # reduce power
+                self.transmitters[f"tx{id}"]["sharing_power"] = max(min_valid_power, tx["sharing_power"] - self.cfg.power_step)
             elif a[1] == 2: # increase power
-                self.transmitters[f"tx{id}"]["sharing_power"] += 1
+                self.transmitters[f"tx{id}"]["sharing_power"] = min(max_valid_power, tx["sharing_power"] + self.cfg.power_step)
         powers_index = tuple([int(tx["sharing_power"] * action[tx_id][0]) for tx_id, tx in enumerate(self.transmitters.values())])
         try:
             self.state = self.powers.index(powers_index)
@@ -494,14 +499,15 @@ class PrecomputedEnv(gym.Env):
         # Remove batch and channel dims
         return tf.squeeze(averaged, axis=[0, -1])  # shape: [H, W]
 
-    def _check_map_alignment(self, cell_size, bler_shape, grid_shape, tolerance=3.0):
+    def _check_map_alignment(self, cell_size, bler_shape, grid_shape, tolerance=4.0):
         """
         Check if cell_size * bler_shape is approximately equal to grid_shape within a tolerance.
         Raises and logs a critical error if not.
         """
         # Compute expected grid size from cell_size and bler_map shape
         approx_grid_shape = np.array(bler_shape) * cell_size
-        grid_shape = np.array(grid_shape[-2:])  # Use last two dimensions in case it's 3D
+        # grid_shape = np.array(grid_shape[-2:])  # Use last two dimensions in case it's 3D
+        grid_shape = np.array([grid_shape[1], grid_shape[0]])  # need to check why these dimensions are the wrong way around
 
         if not np.allclose(approx_grid_shape, grid_shape, atol=tolerance):
             logger.critical("Mismatch between precomputed map and grid shape.")
