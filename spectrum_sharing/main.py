@@ -6,7 +6,6 @@ Closed loop simulator for testing reinforcement learning models with Sionna.
 Must run as a module: python3 -m spectrum_sharing.main
 
 """
-
 import tensorflow as tf
 import sionna
 from time import perf_counter

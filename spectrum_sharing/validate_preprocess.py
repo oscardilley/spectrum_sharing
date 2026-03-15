@@ -14,7 +14,7 @@ def main(cfg):
     """
     # Configuration to change
     TEST_FILE = cfg.assets_path + f"primary_maps.npy" # edit this
-    TEST_FILE = cfg.assets_path + f"OldMaps/temp 130.npy" # edit this
+    TEST_FILE = cfg.assets_path + f"Maps/temp 130.npy" # edit this
     primary=False # True for shape [SINR/BLER/BER, tx_id, y, x] and False for shape [SINR/BLER/BER, i, tx_id, y, x]
 
     map = np.load(TEST_FILE)
